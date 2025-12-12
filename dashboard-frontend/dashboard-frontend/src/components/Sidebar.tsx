@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogou
       <div className="p-4 border-t border-white/20">
         <button
           onClick={onLogout}
-          className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg text-center font-semibold text-sm transition shadow-md"
+          className="w-full py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-center font-semibold text-sm transition shadow-md"
         >
           {isOpen ? 'Logout' : '🚪'}
         </button>
