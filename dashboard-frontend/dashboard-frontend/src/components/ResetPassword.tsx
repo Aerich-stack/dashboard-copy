@@ -92,7 +92,7 @@ export default function ResetPassword({ onBack }: ResetPasswordProps) {
     <div 
       className="min-h-screen bg-cover bg-center bg-fixed relative overflow-hidden flex items-center justify-center"
       style={{
-        backgroundImage: 'url(/bg.png)',
+        backgroundImage: `url(${require('../images/bg.png')})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',

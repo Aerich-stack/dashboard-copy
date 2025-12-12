@@ -42,7 +42,7 @@ function App() {
         <div 
           className="min-h-screen bg-cover bg-center bg-fixed relative overflow-hidden"
           style={{
-            backgroundImage: 'url(/bg.png)',
+            backgroundImage: `url(${require('./images/bg.png')})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundAttachment: 'fixed',
