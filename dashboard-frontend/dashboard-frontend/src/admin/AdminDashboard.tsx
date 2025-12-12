@@ -294,7 +294,7 @@ const Dashboard: React.FC<{ submissions: TeacherSubmission[]; alerts: Alert[] }>
       {/* Quick Links */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold mb-4">Quick Links</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <button className="p-4 bg-blue-100 hover:bg-blue-200 rounded text-left">
             📋 View All Submissions
           </button>
@@ -496,7 +496,7 @@ const ComputeSalary: React.FC = () => {
 
   return (
     <div className="bg-white/30 text-center rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-4">Compute Salary</h2>
+      <h2 className="text-2xl text-white font-bold mb-4">Compute Salary</h2>
 
       {loading ? (
         <p className="text-center text-gray-600">Loading teachers...</p>
@@ -860,7 +860,7 @@ const ManageTeachers: React.FC<{ teachers: any[]; onRefresh: () => void }> = ({ 
       {showAddForm && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-bold mb-4">Add New Teacher</h3>
-          <form onSubmit={handleAddTeacher} className="space-y-4 max-w-md">
+          <form onSubmit={handleAddTeacher} className="space-y-4 w-full">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
               <input
@@ -1015,7 +1015,7 @@ const ManageTeachers: React.FC<{ teachers: any[]; onRefresh: () => void }> = ({ 
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Name</label>
                   <p className="text-gray-900">{selectedTeacherForProfile.name}</p>
@@ -1173,7 +1173,7 @@ const ManageTeachingLoad: React.FC<{ teachers: any[] }> = ({ teachers }) => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-bold mb-6">📚 Assign Teaching Load</h2>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Teacher</label>
             <select
@@ -1397,7 +1397,7 @@ const AdminSettings: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/30 rounded-lg shadow-md p-8 max-w-2xl mx-auto">
+    <div className="bg-white/30 text-center rounded-lg shadow-md p-6">
       <h2 className="text-3xl text-white font-bold mb-8">⚙️ Admin Settings</h2>
 
       {/* Change Password Section */}
@@ -1626,7 +1626,7 @@ const AdminMessages: React.FC = () => {
     <div className="bg-white/15 rounded-lg shadow-md p-6">
       <h2 className="text-2xl text-white font-bold mb-6">📨 Teacher Messages</h2>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {/* Teachers List */}
         <div className="border border-gray-300 rounded-lg p-4 max-h-96 overflow-y-auto">
           <h3 className="font-semibold mb-4 text-white">Teachers with Messages</h3>

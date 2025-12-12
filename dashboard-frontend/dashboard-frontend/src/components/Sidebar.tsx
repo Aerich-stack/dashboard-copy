@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogou
       <div className="p-4 border-b border-stone-600/30 bg-gradient-to-r from-sky-600/20 to-transparent">
         {isOpen ? (
           <div>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-red-300 to-sky-950 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-sky-300 to-sky-950 bg-clip-text text-transparent">
               {role === 'teacher' ? '👨‍🏫 Teacher' : '👩‍💼 Admin'}
             </h1>
             <p className="text-xs text-red-300 mt-2 font-medium">{role === 'teacher' ? 'Dashboard' : 'Management Panel'}</p>
@@ -65,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogou
             className={`w-full flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 text-left transform hover:scale-105 ${
               activeTab === item.tab
                 ? 'bg-gradient-to-r from-sky-500 to-sky-600 font-semibold shadow-lg shadow-sky-500/50 scale-105'
-                : 'hover:bg-red-600/50 hover:shadow-md'
+                : 'hover:bg-sky-600/50 hover:shadow-md'
             }`}
             title={!isOpen ? item.label : ''}
             style={{
@@ -87,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogou
         )}
         <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-lg transition font-semibold text-sm shadow-lg hover:shadow-red-500/50 transform hover:scale-105"
+          className="w-full flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-yellow-500 to-sky-700 hover:from-sky-500 hover:to-yellow-600 rounded-lg transition font-semibold text-sm shadow-lg hover:shadow-red-500/50 transform hover:scale-105"
           title="Logout"
         >
           {isOpen && <span>Logout</span>}

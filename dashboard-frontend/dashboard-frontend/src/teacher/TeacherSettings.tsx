@@ -153,7 +153,7 @@ const TeacherSettings: React.FC<Props> = ({ teacherId }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+    <div className="bg-white rounded-lg shadow-md p-6 w-full">
       <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
 
       {/* Tab Navigation */}
@@ -285,7 +285,7 @@ const TeacherSettings: React.FC<Props> = ({ teacherId }) => {
 
       {/* Security Tab */}
       {activeTab === 'security' && (
-        <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+        <form onSubmit={handleChangePassword} className="space-y-4 w-full">
           <div>
             <label className="block text-sm font-medium text-gray-700">Current Password</label>
             <input
