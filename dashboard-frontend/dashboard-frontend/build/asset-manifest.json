@@ -1,14 +1,14 @@
 {
   "files": {
-    "main.css": "/jeremias-dash/static/css/main.2e708f26.css",
-    "main.js": "/jeremias-dash/static/js/main.18bbd852.js",
+    "main.css": "/jeremias-dash/static/css/main.d195cb31.css",
+    "main.js": "/jeremias-dash/static/js/main.5df71f99.js",
     "static/media/bg.png": "/jeremias-dash/static/media/bg.92c2a9c6295eae3b7085.png",
     "index.html": "/jeremias-dash/index.html",
-    "main.2e708f26.css.map": "/jeremias-dash/static/css/main.2e708f26.css.map",
-    "main.18bbd852.js.map": "/jeremias-dash/static/js/main.18bbd852.js.map"
+    "main.d195cb31.css.map": "/jeremias-dash/static/css/main.d195cb31.css.map",
+    "main.5df71f99.js.map": "/jeremias-dash/static/js/main.5df71f99.js.map"
   },
   "entrypoints": [
-    "static/css/main.2e708f26.css",
-    "static/js/main.18bbd852.js"
+    "static/css/main.d195cb31.css",
+    "static/js/main.5df71f99.js"
   ]
 }

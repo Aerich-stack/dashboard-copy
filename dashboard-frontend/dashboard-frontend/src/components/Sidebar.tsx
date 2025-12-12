@@ -8,7 +8,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogout }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   const teacherMenuItems = [
     { label: 'Home', tab: 'home' },
@@ -32,80 +32,61 @@ const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, onLogou
 
   const menuItems = role === 'teacher' ? teacherMenuItems : adminMenuItems;
 
-  const handleTabClick = (tab: string) => {
-    if (onTabChange) {
-      onTabChange(tab);
-    }
-  };
-
   return (
-    <>
-      {/* Sidebar */}
-      <div className={`${isOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-sky-700 via-sky-800 to-sky-900 h-screen text-white transition-all duration-500 flex flex-col shadow-2xl hover:shadow-sky-500/50`}>
-        {/* Header with Profile Info */}
-        <div className="p-4 border-b border-stone-600/30 bg-gradient-to-r from-sky-600/20 to-transparent">
-          {isOpen ? (
-            <div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-sky-300 to-sky-950 bg-clip-text text-transparent">
-                {role === 'teacher' ? '👨‍🏫 Teacher' : '👩‍💼 Admin'}
-              </h1>
-              <p className="text-xs text-red-300 mt-2 font-medium">{role === 'teacher' ? 'Dashboard' : 'Management Panel'}</p>
-            </div>
-          ) : (
-            <div className="flex justify-center animate-bounce">
-              <span className="text-2xl">{role === 'teacher' ? '👨‍🏫' : '👩‍💼'}</span>
-            </div>
-          )}
-        </div>
+    <div className={`${isOpen ? 'w-64' : 'w-20'} h-screen bg-gradient-to-b from-sky-700 via-sky-800 to-sky-900 text-white transition-all duration-500 flex flex-col shadow-xl`}>
+      
+      {/* HEADER */}
+      <div className="p-4 border-b border-white/20">
+        {isOpen ? (
+          <div>
+            <h1 className="text-xl font-bold">{role === 'teacher' ? '👨‍🏫 Teacher' : '👩‍💼 Admin'}</h1>
+            <p className="text-xs text-sky-200 mt-1">
+              {role === 'teacher' ? 'Dashboard' : 'Management Panel'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <span className="text-3xl">{role === 'teacher' ? '👨‍🏫' : '👩‍💼'}</span>
+          </div>
+        )}
+      </div>
 
-        {/* Menu Items */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => handleTabClick(item.tab)}
-              className={`w-full flex items-center space-x-3 p-3 rounded-xl transition-all duration-300 text-left transform hover:scale-105 ${
-                activeTab === item.tab
-                  ? 'bg-gradient-to-r from-sky-500 to-sky-600 font-semibold shadow-lg shadow-sky-500/50 scale-105'
-                  : 'hover:bg-sky-600/50 hover:shadow-md'
-              }`}
-              title={!isOpen ? item.label : ''}
-              style={{
-                animation: `slideInLeft 0.6s ease-out ${index * 0.05}s both`
-              }}
-            >
-              <span className="text-xl flex-shrink-0"></span>
-              {isOpen && <span className="flex-1 text-sm font-medium">{item.label}</span>}
-            </button>
-          ))}
-        </nav>
-
-        {/* Footer - Settings and Logout */}
-        <div className="border-t border-sky-600/30 p-4 space-y-2 bg-gradient-to-t from-sky-900/50 to-transparent">
-          {isOpen && (
-            <div className="text-xs text-sky-300 mb-3 px-2">
-              <p className="font-semibold">{role === 'teacher' ? 'Teacher Portal' : 'Admin Portal'}</p>
-            </div>
-          )}
+      {/* MENU ITEMS */}
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {menuItems.map((item, index) => (
           <button
-            onClick={onLogout}
-            className="w-full flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-yellow-500 to-sky-700 hover:from-sky-500 hover:to-yellow-600 rounded-lg transition font-semibold text-sm shadow-lg hover:shadow-red-500/50 transform hover:scale-105"
-            title="Logout"
+            key={index}
+            onClick={() => onTabChange && onTabChange(item.tab)}
+            className={`w-full flex items-center rounded-lg px-3 py-3 transition-all duration-300 
+              ${activeTab === item.tab
+                ? 'bg-sky-600 shadow-md shadow-sky-500/40 scale-[1.02]'
+                : 'hover:bg-sky-700/40'
+              }`}
+            title={!isOpen ? item.label : ''}
           >
-            {isOpen && <span>Logout</span>}
+            {isOpen && <span className="text-sm font-medium">{item.label}</span>}
           </button>
-        </div>
+        ))}
+      </nav>
 
-        {/* Toggle Button - Always Visible */}
+      {/* FOOTER */}
+      <div className="p-4 border-t border-white/20">
         <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="hidden md:block m-4 p-2 bg-sky-600 hover:bg-sky-500 rounded-lg transition font-semibold text-white"
-          title={isOpen ? 'Collapse' : 'Expand'}
+          onClick={onLogout}
+          className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg text-center font-semibold text-sm transition shadow-md"
         >
-          {isOpen ? '◀' : '▶'}
+          {isOpen ? 'Logout' : '🚪'}
         </button>
       </div>
-    </>
+
+      {/* TOGGLE BUTTON */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="absolute -right-3 top-10 bg-sky-700 hover:bg-sky-600 text-white p-2 rounded-full shadow-xl"
+      >
+        {isOpen ? '◀' : '▶'}
+      </button>
+    </div>
   );
 };
 
