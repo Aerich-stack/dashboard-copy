@@ -230,8 +230,8 @@ const Dashboard: React.FC<{ submissions: TeacherSubmission[]; alerts: Alert[] }>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
                 <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} stroke="rgba(255,255,255,0.5)" />
                 <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.5)' }} stroke="rgba(255,255,255,0.5)" />
-                <Tooltip formatter={(value) => `${value}h`} contentStyle={{ backgroundColor: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.2)' }} />
-                <Bar dataKey="hours" fill="#3b82f6" />
+                <Tooltip formatter={(value) => `${value}h`} contentStyle={{ backgroundColor: '#ffffff', border: '1px solid rgba(255,255,255,0.2)' }} />
+                <Bar dataKey="hours" fill="#f5b402" />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -495,13 +495,14 @@ const ComputeSalary: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white/30 text-center rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold mb-4">Compute Salary</h2>
 
       {loading ? (
         <p className="text-center text-gray-600">Loading teachers...</p>
       ) : (
-        <div className="space-y-4 max-w-md">
+        <div className="flex justify-center">
+          <div className="space-y-4 max-w-md w-full">
           <div>
             <label className="block text-sm font-medium text-gray-700">Teacher</label>
             <select
@@ -585,6 +586,7 @@ const ComputeSalary: React.FC = () => {
           >
             {computing ? "Computing..." : "Compute Salary"}
           </button>
+          </div>
         </div>
       )}
     </div>
@@ -1395,16 +1397,16 @@ const AdminSettings: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto">
-      <h2 className="text-3xl font-bold mb-8">⚙️ Admin Settings</h2>
+    <div className="bg-white/30 rounded-lg shadow-md p-8 max-w-2xl mx-auto">
+      <h2 className="text-3xl text-white font-bold mb-8">⚙️ Admin Settings</h2>
 
       {/* Change Password Section */}
       <div className="space-y-6">
         <div className="border-b-2 border-gray-200 pb-6">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">🔐 Change Password</h3>
+          <h3 className="text-2xl font-bold text-white mb-4">🔐 Change Password</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+              <label className="block text-sm font-medium text-white mb-2">Current Password</label>
               <input
                 type="password"
                 value={currentPassword}
@@ -1414,7 +1416,7 @@ const AdminSettings: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+              <label className="block text-sm font-medium text-white mb-2">New Password</label>
               <input
                 type="password"
                 value={newPassword}
@@ -1424,7 +1426,7 @@ const AdminSettings: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+              <label className="block text-sm font-medium text-white mb-2">Confirm Password</label>
               <input
                 type="password"
                 value={confirmPassword}
@@ -1456,8 +1458,8 @@ const AdminSettings: React.FC = () => {
 
         {/* Teacher Online Class Status */}
         <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">📹 Teacher Online Classes</h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-2xl font-bold text-white mb-4">📹 Teacher Online Classes</h3>
+          <div className="bg-white/30 border border-blue-200 rounded-lg p-4">
             <p className="text-gray-600 mb-4">Monitor which teachers are currently hosting online classes:</p>
             <TeacherOnlineClassStatus />
           </div>
@@ -1621,15 +1623,15 @@ const AdminMessages: React.FC = () => {
     : [];
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-6">📨 Teacher Messages</h2>
+    <div className="bg-white/15 rounded-lg shadow-md p-6">
+      <h2 className="text-2xl text-white font-bold mb-6">📨 Teacher Messages</h2>
 
       <div className="grid grid-cols-3 gap-4">
         {/* Teachers List */}
         <div className="border border-gray-300 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <h3 className="font-semibold mb-4 text-gray-800">Teachers with Messages</h3>
+          <h3 className="font-semibold mb-4 text-white">Teachers with Messages</h3>
           {messages.length === 0 ? (
-            <p className="text-gray-600 text-sm">No messages from teachers</p>
+            <p className="text-white text-sm">No messages from teachers</p>
           ) : (
             <div className="space-y-2">
               {Array.from(
@@ -1680,7 +1682,7 @@ const AdminMessages: React.FC = () => {
         <div className="col-span-2 border border-gray-300 rounded-lg p-4 flex flex-col">
           {selectedTeacher ? (
             <>
-              <h3 className="font-semibold mb-4 text-gray-800">
+              <h3 className="font-semibold mb-4 text-white">
                 Messages from {teachers.find((t) => t.id === selectedTeacher)?.name}
               </h3>
 
@@ -1689,7 +1691,7 @@ const AdminMessages: React.FC = () => {
                 {loading ? (
                   <p className="text-center text-gray-600">Loading...</p>
                 ) : teacherMessages.length === 0 ? (
-                  <p className="text-center text-gray-600">No messages from this teacher</p>
+                  <p className="text-center text-white">No messages from this teacher</p>
                 ) : (
                   teacherMessages.map((msg) => (
                     <div
@@ -1728,7 +1730,7 @@ const AdminMessages: React.FC = () => {
               </div>
             </>
           ) : (
-            <p className="text-center text-gray-600">Select a teacher to view messages</p>
+            <p className="text-center text-white">Select a teacher to view messages</p>
           )}
         </div>
       </div>
