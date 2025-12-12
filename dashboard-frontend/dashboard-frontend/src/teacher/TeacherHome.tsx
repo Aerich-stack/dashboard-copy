@@ -75,23 +75,23 @@ const TeacherHome: React.FC<TeacherHomeProps> = ({ teacher: initialTeacher, acti
 
         {activeTab === "home" && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-lg p-6 border border-white/20 hover:bg-white/20 transition-all duration-300" style={{ animation: 'slideIn 0.6s ease-out' }}>
-            <h2 className="text-3xl font-bold mb-6 text-center text-white drop-shadow-lg">Welcome, {teacher?.name || "Teacher"}! 👋</h2>
-            <div className="grid grid-cols-1 gap-4">
+            <h2 className="text-3xl font-bold mb-8 text-center text-white drop-shadow-lg">Welcome, {teacher?.name || "Teacher"}! 👋</h2>
+            <div className="grid grid-cols-2 gap-6">
               <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105 transform" style={{ animation: 'slideIn 0.6s ease-out 0.1s backwards' }}>
-                <p className="text-sm text-white/80">Email</p>
-                <p className="text-lg font-semibold text-white">{teacher?.email}</p>
+                <p className="text-sm text-white/80 mb-1">Email</p>
+                <p className="text-base font-semibold text-white break-words">{teacher?.email}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105 transform" style={{ animation: 'slideIn 0.6s ease-out 0.2s backwards' }}>
-                <p className="text-sm text-white/80">Department</p>
-                <p className="text-lg font-semibold text-white">{teacher?.department}</p>
+                <p className="text-sm text-white/80 mb-1">Department</p>
+                <p className="text-base font-semibold text-white">{teacher?.department}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105 transform" style={{ animation: 'slideIn 0.6s ease-out 0.3s backwards' }}>
-                <p className="text-sm text-white/80">Basic Pay</p>
-                <p className="text-lg font-semibold text-white">₱{teacher?.basic_pay.toLocaleString()}</p>
+                <p className="text-sm text-white/80 mb-1">Basic Pay</p>
+                <p className="text-base font-semibold text-white">₱{teacher?.basic_pay.toLocaleString()}</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105 transform" style={{ animation: 'slideIn 0.6s ease-out 0.4s backwards' }}>
-                <p className="text-sm text-white/80">Teacher ID</p>
-                <p className="text-lg font-semibold text-white">{teacher?.id}</p>
+                <p className="text-sm text-white/80 mb-1">Teacher ID</p>
+                <p className="text-base font-semibold text-white">{teacher?.id}</p>
               </div>
             </div>
           </div>
