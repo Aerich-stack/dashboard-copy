@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <!-- Background -->
+  <rect width="180" height="180" fill="#0369a1" rx="40"/>
+  
+  <!-- Gradient overlay -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0369a1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Book Icon -->
+  <g transform="translate(45, 30)">
+    <!-- Book pages -->
+    <rect x="20" y="15" width="35" height="50" fill="#f0f9ff" rx="2" stroke="#ffffff" stroke-width="2"/>
+    <line x1="37.5" y1="15" x2="37.5" y2="65" stroke="#ffffff" stroke-width="2"/>
+    
+    <!-- Book spine -->
+    <rect x="10" y="15" width="15" height="50" fill="#06b6d4" rx="2" stroke="#ffffff" stroke-width="2"/>
+    
+    <!-- Lines on pages -->
+    <line x1="28" y1="25" x2="48" y2="25" stroke="#0369a1" stroke-width="2"/>
+    <line x1="28" y1="33" x2="48" y2="33" stroke="#0369a1" stroke-width="1.5" opacity="0.7"/>
+    <line x1="28" y1="40" x2="48" y2="40" stroke="#0369a1" stroke-width="1.5" opacity="0.7"/>
+    <line x1="28" y1="47" x2="48" y2="47" stroke="#0369a1" stroke-width="1.5" opacity="0.7"/>
+    <line x1="28" y1="54" x2="48" y2="54" stroke="#0369a1" stroke-width="1.5" opacity="0.7"/>
+  </g>
+  
+  <!-- Currency symbol for payroll -->
+  <g transform="translate(105, 100)">
+    <circle cx="0" cy="0" r="20" fill="#10b981" opacity="0.9"/>
+    <text x="0" y="8" text-anchor="middle" font-size="24" font-weight="bold" fill="#ffffff">₱</text>
+  </g>
+</svg>
