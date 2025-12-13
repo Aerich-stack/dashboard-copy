@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import mysql from "mysql2/promise";
 
 // Import routes
 import teacherRoutes from "./routes/teacherRoutes.js";
@@ -20,30 +21,51 @@ import * as Notification from "./models/Notification.js";
 import * as Message from "./models/Message.js";
 
 // Import email service
-import { sendPasswordResetEmail, verifyEmailConnection } from "./utils/emailService.js";
+import { sendPasswordResetEmail } from "./utils/emailService.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5601;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Initialize all database tables on startup
-const initializeDatabaseTables = () => {
-  console.log("Initializing database tables...");
-  Teacher.createTeacherTable();
-  Attendance.createAttendanceTable();
-  TeachingLoad.createTeachingLoadTable();
-  Salary.createSalaryTable();
-  Notification.createNotificationsTable();
-  Message.createMessagesTable();
+// Root route
+app.get("/", (req, res) => {
+  res.send("✅ Backend is running!");
+});
+
+// Database connection
+let db;
+const initializeDatabase = async () => {
+  try {
+    db = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASS,
+      database: process.env.DB_NAME,
+      port: process.env.DB_PORT,
+    });
+    console.log("✅ Connected to database!");
+
+    // Initialize tables
+    await Teacher.createTeacherTable(db);
+    await Attendance.createAttendanceTable(db);
+    await TeachingLoad.createTeachingLoadTable(db);
+    await Salary.createSalaryTable(db);
+    await Notification.createNotificationsTable(db);
+    await Message.createMessagesTable(db);
+
+    console.log("✅ Database tables initialized!");
+  } catch (error) {
+    console.error("❌ Database initialization failed:", error);
+  }
 };
 
-// Call initialization on server start
-initializeDatabaseTables();
+// Initialize database on startup
+initializeDatabase();
 
 // Routes
 app.use("/api/teachers", teacherRoutes);
@@ -59,12 +81,11 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ success: true, message: "Server is running" });
 });
 
-// Admin forgot-password endpoint with email
+// Admin forgot-password endpoint
 app.post("/api/admin/forgot-password", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-  
-  // Demo admin email check - in production, check against admin DB
+
   if (email === 'admin@school.com') {
     try {
       const token = 'temp-reset-token-' + Date.now();
@@ -72,11 +93,10 @@ app.post("/api/admin/forgot-password", async (req, res) => {
       await sendPasswordResetEmail(email, token, adminName);
       res.status(200).json({ success: true, message: 'Check your email for reset instructions' });
     } catch (error) {
-      console.error('Error sending password reset email to admin:', error);
+      console.error('Error sending email:', error);
       res.status(500).json({ success: false, message: 'Error sending email' });
     }
   } else {
-    // Security: return success even if email doesn't exist
     res.status(200).json({ success: true, message: 'If the account exists, reset instructions have been sent' });
   }
 });
@@ -87,10 +107,8 @@ app.put("/api/admin/:id/change-password", (req, res) => {
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ success: false, message: 'Current and new password are required' });
   }
-  
-  // Simple demo admin password check - in production use hashing
+
   if (currentPassword === 'admin123') {
-    // In production, store the hashed password
     console.log('Admin password changed');
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } else {
@@ -100,7 +118,7 @@ app.put("/api/admin/:id/change-password", (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
 
 export default app;
