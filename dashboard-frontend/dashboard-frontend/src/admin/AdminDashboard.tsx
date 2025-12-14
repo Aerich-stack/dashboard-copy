@@ -95,22 +95,29 @@ interface SalaryHistoryRow {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ activeTab, onTabChange }) => {
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {activeTab === "dashboard" && <DashboardHome onTabChange={onTabChange} />}
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        backgroundImage: `url(${require('../images/bg.png')})`,
+        backgroundSize: '110%',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      {/* Blurred Background Overlay */}
+      <div className="absolute inset-0 backdrop-blur-md bg-black/35"></div>
 
-      {activeTab === "verify" && <VerifyAttendance />}
-
-      {activeTab === "compute" && <ComputeSalary />}
-
-      {activeTab === "teachers" && <ManageTeachers />}
-
-      {activeTab === "teaching_load" && <ManageTeachingLoad />}
-
-      {activeTab === "reports" && <Reports />}
-
-      {activeTab === "messages" && <AdminMessages />}
-
-      {activeTab === "settings" && <AdminSettings />}
+      {/* ✅ Actual admin content */}
+      <div className="relative z-10 p-4 md:p-6 space-y-6">
+        {activeTab === "dashboard" && <DashboardHome onTabChange={onTabChange} />}
+        {activeTab === "verify" && <VerifyAttendance />}
+        {activeTab === "compute" && <ComputeSalary />}
+        {activeTab === "teachers" && <ManageTeachers />}
+        {activeTab === "teaching_load" && <ManageTeachingLoad />}
+        {activeTab === "reports" && <Reports />}
+        {activeTab === "messages" && <AdminMessages />}
+        {activeTab === "settings" && <AdminSettings />}
+      </div>
     </div>
   );
 };

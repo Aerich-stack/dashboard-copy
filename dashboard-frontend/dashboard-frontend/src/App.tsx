@@ -173,7 +173,7 @@ function App() {
 
           {/* ✅ Content shifts based on sidebar state */}
           <div
-            className={`h-full overflow-auto transition-all duration-500
+            className={`flex-1 overflow-auto transition-all duration-500
       ${sidebarOpen ? "ml-64" : "ml-20"}
       md:ml-64
 
@@ -209,7 +209,7 @@ function App() {
 
           {/* ✅ Content shifts based on sidebar state */}
           <div
-            className={`h-full overflow-auto transition-all duration-500
+            className={`flex-1 overflow-auto transition-all duration-500
             ${sidebarOpen ? "ml-64" : "ml-20"}
             md:ml-64
             `}
