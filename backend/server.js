@@ -15,7 +15,7 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 // Import models
 import * as Teacher from "./models/Teacher.js";
-import * as Attendance from "./models/Attendance.js";
+import * as Attendance from "./models/AttendanceModel.js";
 import * as TeachingLoad from "./models/TeachingLoad.js";
 import * as Salary from "./models/Salary.js";
 import * as Notification from "./models/Notification.js";
@@ -38,6 +38,8 @@ app.get("/", (req, res) => {
   res.send("✅ Backend is running!");
 });
 
+const dashboardRoutes = require("./routes/dashboardRoutes");
+app.use("/api/dashboard", dashboardRoutes);
 // Database connection + table initialization
 let db;
 const initializeDatabase = async () => {
