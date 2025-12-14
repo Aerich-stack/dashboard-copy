@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import logo from "../images/logo.png"; 
 interface SidebarProps {
   role: "teacher" | "admin";
   activeTab?: string;
@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(true);
 
-  // ✅ Auto-collapse on mobile, always open on desktop
+  // ✅ Auto-collapse on mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -42,7 +42,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // ✅ Toggle handler
   const toggleSidebar = () => {
     const newState = !isOpen;
     setIsOpen(newState);
@@ -76,30 +75,46 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div
       className={`
         fixed top-0 left-0 h-screen z-50
-        bg-gradient-to-b from-blue-500 via-blue-600 to-blue-700 text-white hover:bg-amber-300
+        bg-gradient-to-b from-blue-500 via-blue-600 to-blue-700 text-white
         shadow-xl transition-all duration-300
         ${isOpen ? "w-64" : "w-20"}
       `}
     >
-      {/* HEADER */}
-      <div className="p-4 border-b border-white/20 flex items-center justify-between">
-        {isOpen ? (
-          <div>
-            <h1 className="text-xl font-bold">
-              {role === "teacher" ? "👨‍🏫 Teacher" : "👩‍💼 Admin"}
-            </h1>
-            <p className="text-xs text-sky-200 mt-1">
-              {role === "teacher" ? "Dashboard" : "Management Panel"}
-            </p>
-          </div>
+      {/* ✅ HEADER */}
+      <div className="p-4 border-b border-white/20 flex flex-col items-center">
+        {role === "admin" ? (
+          <>
+            {/* ✅ ADMIN LOGO (CENTERED) */}
+            <img
+              src={logo}
+              alt="Admin Logo"
+              className={`transition-all ${
+                isOpen ? "w-20 h-20" : "w-10 h-10"
+              } object-contain`}
+            />
+            {isOpen && (
+              <p className="text-xs text-sky-200 mt-2">Management Panel</p>
+            )}
+          </>
         ) : (
-          <span className="text-3xl">
-            {role === "teacher" ? "👨‍🏫" : "👩‍💼"}
-          </span>
+          <>
+            {/* ✅ TEACHER PROFILE PIC PLACEHOLDER */}
+            <div
+              className={`rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-white
+                ${isOpen ? "w-20 h-20 text-4xl" : "w-10 h-10 text-xl"}
+              `}
+            >
+              {/* Placeholder initials or icon */}
+              👤
+            </div>
+            {isOpen && (
+              <p className="text-xs text-sky-200 mt-2">Teacher Dashboard</p>
+            )}
+          </>
         )}
       </div>
 
-      {/* MENU */}
+      {/* ✅ MENU */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {menuItems.map((item, index) => (
           <button
@@ -109,6 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               w-full flex items-center justify-between
               rounded-lg px-3 py-3 transition-all duration-200
               hover:bg-white/10
+              ${activeTab === item.tab ? "bg-white/20" : ""}
             `}
             title={!isOpen ? item.label : ""}
           >
@@ -125,17 +141,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </nav>
 
-      {/* FOOTER */}
-      <div className="p-4 border-t border-white/20">
+      {/* ✅ FOOTER */}
+      <div className="p-6 border-t border-white/20">
         <button
           onClick={onLogout}
-          className="w-full py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg text-center font-semibold text-sm transition shadow-md"
+          className="w-full py-4 bg-amber-400 hover:bg-amber-500 rounded-lg text-center font-semibold text-sm transition shadow-md"
         >
           {isOpen ? "Logout" : "🚪"}
         </button>
       </div>
 
-      {/* ✅ MOBILE TOGGLE ONLY */}
+      {/* ✅ MOBILE TOGGLE */}
       <button
         onClick={toggleSidebar}
         className="absolute right-2 top-2 bg-sky-700 hover:bg-sky-600 text-white p-2 rounded-full shadow-xl md:hidden"
