@@ -27,6 +27,12 @@ import {
   salaryAPI
 } from "../services/api";
 
+import {
+  fetchDashboardStats,
+  fetchSalarySummary,
+  fetchAttendanceSummary,
+} from "../api/dashboard";
+
 import notificationAPI from "../services/notificationAPI";
 
 /* =====================
@@ -167,10 +173,10 @@ const DashboardHome: React.FC<DashboardHomeProps> = ({ onTabChange }) => {
   const fetchDashboard = async () => {
     try {
       const [statsRes, salaryRes, attendanceRes] = await Promise.all([
-        api.get("/api/dashboard/stats"),
-        api.get("/api/salary/summary"),
-        api.get("/api/attendance/summary"),
-      ]);
+      fetchDashboardStats(),
+      fetchSalarySummary(),
+      fetchAttendanceSummary(),
+  ]);
 
       if (statsRes.data?.success) setStats(statsRes.data.data);
       if (salaryRes.data?.success) setSalaryBars(salaryRes.data.data || []);
@@ -1176,6 +1182,8 @@ const AdminMessages: React.FC = () => {
     </div>
   );
 };
+
+
 
 /* =============================
    EXPORT DEFAULT

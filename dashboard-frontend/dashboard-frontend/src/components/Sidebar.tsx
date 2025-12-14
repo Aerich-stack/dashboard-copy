@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import logo from "../images/logo.png"; 
+import logo from "../images/trademark.png";
 interface SidebarProps {
   role: "teacher" | "admin";
   activeTab?: string;
