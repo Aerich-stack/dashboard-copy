@@ -41,9 +41,9 @@ export const createSalary = (salaryData, callback) => {
     salaryData.allowances,
     salaryData.deductions,
     salaryData.total_salary,
-    'Draft'
+    "Draft",
   ];
-  
+
   db.query(sql, values, callback);
 };
 
@@ -84,9 +84,9 @@ export const updateSalary = (id, salaryData, callback) => {
     salaryData.deductions,
     salaryData.total_salary,
     salaryData.status,
-    id
+    id,
   ];
-  
+
   db.query(sql, values, callback);
 };
 
@@ -102,7 +102,7 @@ export const deleteSalary = (id, callback) => {
   db.query(sql, [id], callback);
 };
 
-// Get summary by period
+// Summary by period
 export const getSalarySummaryByPeriod = (periodStart, periodEnd, callback) => {
   const sql = `
     SELECT 
