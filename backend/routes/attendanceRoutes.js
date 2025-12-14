@@ -1,16 +1,18 @@
 import express from "express";
 import {
-  getAllAttendance,
-  getAttendanceById,
-  getAttendanceByTeacherId,
-  getAttendanceSummary
+  getAttendanceSummary,
+  getAllAttendanceController,
+  getAttendanceByIdController,
+  getAttendanceByTeacherIdController
+
 } from "../controllers/AttendanceController.js";
 
 const router = express.Router();
 
-router.get("/", getAllAttendance);
-router.get("/summary", getAttendanceSummary);   // ✅ REQUIRED BY FRONTEND
-router.get("/:id", getAttendanceById);
-router.get("/teacher/:teacherId", getAttendanceByTeacherId);
+router.get("/", getAllAttendanceController);
+router.get("/summary", getAttendanceSummary);
+router.get("/:id", getAttendanceByIdController);
+router.get("/teacher/:teacherId", getAttendanceByTeacherIdController);
+
 
 export default router;

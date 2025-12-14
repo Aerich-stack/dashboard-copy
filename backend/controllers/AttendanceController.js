@@ -1,13 +1,19 @@
 import {
-  getAllAttendanceModel,
-  getAttendanceByIdModel,
-  getAttendanceByTeacherIdModel
+  createAttendance,
+  getAttendanceByTeacherId,
+  getAllAttendance,
+  getAttendanceById,
+  updateAttendance,
+  approveAttendance,
+  deleteAttendance,
+  getTotalHoursByTeacher
 } from "../models/AttendanceModel.js";
 
-// ✅ Summary for dashboard
+// ✅ Summary for dashboard (uses getAllAttendance)
 export const getAttendanceSummary = (req, res) => {
-  getAllAttendanceModel((err, rows) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+  getAllAttendance((err, rows) => {
+    if (err)
+      return res.status(500).json({ success: false, error: err.message });
 
     res.json({
       success: true,
@@ -17,9 +23,10 @@ export const getAttendanceSummary = (req, res) => {
 };
 
 // ✅ All attendance
-export const getAllAttendance = (req, res) => {
-  getAllAttendanceModel((err, rows) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+export const getAllAttendanceController = (req, res) => {
+  getAllAttendance((err, rows) => {
+    if (err)
+      return res.status(500).json({ success: false, error: err.message });
 
     res.json({
       success: true,
@@ -29,11 +36,12 @@ export const getAllAttendance = (req, res) => {
 };
 
 // ✅ Attendance by ID
-export const getAttendanceById = (req, res) => {
+export const getAttendanceByIdController = (req, res) => {
   const { id } = req.params;
 
-  getAttendanceByIdModel(id, (err, rows) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+  getAttendanceById(id, (err, rows) => {
+    if (err)
+      return res.status(500).json({ success: false, error: err.message });
 
     res.json({
       success: true,
@@ -43,11 +51,12 @@ export const getAttendanceById = (req, res) => {
 };
 
 // ✅ Attendance by teacher
-export const getAttendanceByTeacherId = (req, res) => {
+export const getAttendanceByTeacherIdController = (req, res) => {
   const { teacherId } = req.params;
 
-  getAttendanceByTeacherIdModel(teacherId, (err, rows) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+  getAttendanceByTeacherId(teacherId, (err, rows) => {
+    if (err)
+      return res.status(500).json({ success: false, error: err.message });
 
     res.json({
       success: true,

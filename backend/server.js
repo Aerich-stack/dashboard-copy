@@ -38,8 +38,8 @@ app.get("/", (req, res) => {
   res.send("✅ Backend is running!");
 });
 
-const dashboardRoutes = require("./routes/dashboardRoutes");
-app.use("/api/dashboard", dashboardRoutes);
+
+
 // Database connection + table initialization
 let db;
 const initializeDatabase = async () => {

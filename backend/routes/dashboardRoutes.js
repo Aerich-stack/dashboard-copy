@@ -1,109 +1,86 @@
 import express from "express";
-import db from "../config/db.js";
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
 
+dotenv.config();
 
-
-// ✅ Dashboard Stats Route
-router.get("/stats", async (req, res) => {
-  try {
-    const [teachers] = await db.query("SELECT COUNT(*) AS total FROM teachers");
-    const [attendance] = await db.query("SELECT COUNT(*) AS total FROM attendance");
-    const [salary] = await db.query("SELECT COUNT(*) AS total FROM salary");
-    const [loads] = await db.query("SELECT COUNT(*) AS total FROM teaching_load");
-
-    res.json({
-      success: true,
-      data: {
-        teachers: teachers[0].total,
-        attendance: attendance[0].total,
-        salary: salary[0].total,
-        teaching_loads: loads[0].total
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-export default router;
-const express = require("express");
 const router = express.Router();
-const { Attendance, Salary } = require("../models");
-const { sequelize } = require("../models");
 
-// ✅ Dashboard Stats
+// ✅ DB config
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+};
+
+// ✅ 1. Dashboard Stats
 router.get("/stats", async (req, res) => {
   try {
-    const totalSubmissions = await Attendance.count();
-    const pendingAttendance = await Attendance.count({
-      where: { status: "pending" },
-    });
-    const verifiedHours = await Attendance.sum("hours", {
-      where: { status: "approved" },
-    });
+    const db = await mysql.createConnection(dbConfig);
+
+    const [total] = await db.execute("SELECT COUNT(*) AS total FROM attendance");
+    const [pending] = await db.execute(
+      "SELECT COUNT(*) AS pending FROM attendance WHERE status = 'pending'"
+    );
+    const [hours] = await db.execute(
+      "SELECT SUM(hours) AS verifiedHours FROM attendance WHERE status = 'approved'"
+    );
 
     res.json({
       success: true,
       data: {
-        totalSubmissions,
-        pendingAttendance,
-        verifiedHours: verifiedHours || 0,
+        totalSubmissions: total[0].total,
+        pendingAttendance: pending[0].pending,
+        verifiedHours: hours[0].verifiedHours || 0,
       },
     });
   } catch (err) {
     console.error("Dashboard stats error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Dashboard stats error",
-    });
+    res.status(500).json({ success: false, message: "Dashboard stats error" });
   }
 });
 
-// ✅ Salary Summary (Bar Chart)
-router.get("/salary-summary", async (req, res) => {
-  try {
-    const rows = await Salary.findAll({
-      attributes: [
-        "teacher_name",
-        [sequelize.fn("SUM", sequelize.col("net_salary")), "total"],
-      ],
-      group: ["teacher_name"],
-    });
-
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error("Salary summary error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Salary summary error",
-    });
-  }
-});
-
-// ✅ Attendance Summary (Pie Chart)
+// ✅ 2. Attendance Summary
 router.get("/attendance-summary", async (req, res) => {
   try {
-    const approved = await Attendance.count({
-      where: { status: "approved" },
-    });
-    const pending = await Attendance.count({
-      where: { status: "pending" },
-    });
+    const db = await mysql.createConnection(dbConfig);
+
+    const [approved] = await db.execute(
+      "SELECT COUNT(*) AS approved FROM attendance WHERE status = 'approved'"
+    );
+    const [pending] = await db.execute(
+      "SELECT COUNT(*) AS pending FROM attendance WHERE status = 'pending'"
+    );
 
     res.json({
       success: true,
       data: [
-        { name: "Approved", value: approved },
-        { name: "Pending", value: pending },
+        { name: "Approved", value: approved[0].approved },
+        { name: "Pending", value: pending[0].pending },
       ],
     });
   } catch (err) {
     console.error("Attendance summary error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Attendance summary error",
-    });
+    res.status(500).json({ success: false, message: "Attendance summary error" });
   }
 });
 
-module.exports = router;
+// ✅ 3. Salary Summary
+router.get("/salary-summary", async (req, res) => {
+  try {
+    const db = await mysql.createConnection(dbConfig);
+
+    const [rows] = await db.execute(
+      "SELECT teacher_name, SUM(net_salary) AS total FROM salary GROUP BY teacher_name"
+    );
+
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error("Salary summary error:", err);
+    res.status(500).json({ success: false, message: "Salary summary error" });
+  }
+});
+
+export default router;
