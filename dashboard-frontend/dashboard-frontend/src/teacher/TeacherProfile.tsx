@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from "../services/api";
 
 interface Props {
   teacherId?: number;
@@ -30,7 +30,7 @@ const TeacherProfile: React.FC<Props> = ({ teacherId, isViewOnly = false }) => {
   const fetchTeacher = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/teachers/${teacherId}`);
+      const response = await api.get(`/api/teachers/${teacherId}`);
       if (response.data.success) {
         const t = response.data.data;
         setTeacher(t);
@@ -56,7 +56,7 @@ const TeacherProfile: React.FC<Props> = ({ teacherId, isViewOnly = false }) => {
     if (!teacherId) return;
 
     try {
-      const response = await axios.put(`http://localhost:4000/api/teachers/${teacherId}`, {
+      const response = await api.put(`/api/teachers/${teacherId}`, {
         name: formData.name,
         email: formData.email,
         department: formData.department,

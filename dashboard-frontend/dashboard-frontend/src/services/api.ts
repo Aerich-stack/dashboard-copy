@@ -1,108 +1,139 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:4000/api";
+const API_BASE_URL = "https://payroll-backend-8214.onrender.com";
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// ==================== TEACHER API ====================
+/* ==================== TEACHER API ==================== */
 export const teacherAPI = {
   createTeacher: (teacherData: any) =>
-    api.post("/teachers", teacherData),
+    api.post("/api/teachers", teacherData),
+
   getAllTeachers: () =>
-    api.get("/teachers"),
+    api.get("/api/teachers"),
+
   getTeacherById: (id: number) =>
-    api.get(`/teachers/${id}`),
+    api.get(`/api/teachers/${id}`),
+
   updateTeacher: (id: number, teacherData: any) =>
-    api.put(`/teachers/${id}`, teacherData),
+    api.put(`/api/teachers/${id}`, teacherData),
+
   deleteTeacher: (id: number) =>
-    api.delete(`/teachers/${id}`),
+    api.delete(`/api/teachers/${id}`),
+
   initializeTables: () =>
-    api.post("/teachers/init"),
+    api.post("/api/teachers/init"),
 };
 
-// ==================== ATTENDANCE API ====================
+/* ==================== ATTENDANCE API ==================== */
 export const attendanceAPI = {
   submitAttendance: (attendanceData: any) =>
-    api.post("/attendance", attendanceData),
+    api.post("/api/attendance", attendanceData),
+
   getTeacherAttendance: (teacherId: number) =>
-    api.get(`/attendance/teacher/${teacherId}`),
+    api.get(`/api/attendance/teacher/${teacherId}`),
+
   getAllAttendance: () =>
-    api.get("/attendance"),
+    api.get("/api/attendance"),
+
   getAttendanceById: (id: number) =>
-    api.get(`/attendance/${id}`),
+    api.get(`/api/attendance/${id}`),
+
   updateAttendance: (id: number, attendanceData: any) =>
-    api.put(`/attendance/${id}`, attendanceData),
+    api.put(`/api/attendance/${id}`, attendanceData),
+
   approveAttendance: (id: number) =>
-    api.patch(`/attendance/${id}/approve`),
+    api.patch(`/api/attendance/${id}/approve`),
+
   deleteAttendance: (id: number) =>
-    api.delete(`/attendance/${id}`),
+    api.delete(`/api/attendance/${id}`),
+
   initializeTables: () =>
-    api.post("/attendance/init"),
+    api.post("/api/attendance/init"),
 };
 
-// ==================== TEACHING LOAD API ====================
+/* ==================== TEACHING LOAD API ==================== */
 export const teachingLoadAPI = {
   createTeachingLoad: (loadData: any) =>
-    api.post("/teaching-load", loadData),
+    api.post("/api/teaching-load", loadData),
+
   getTeacherTeachingLoad: (teacherId: number) =>
-    api.get(`/teaching-load/teacher/${teacherId}`),
+    api.get(`/api/teaching-load/teacher/${teacherId}`),
+
   getAllTeachingLoads: () =>
-    api.get("/teaching-load"),
+    api.get("/api/teaching-load"),
+
   getTeachingLoadById: (id: number) =>
-    api.get(`/teaching-load/${id}`),
+    api.get(`/api/teaching-load/${id}`),
+
   updateTeachingLoad: (id: number, loadData: any) =>
-    api.put(`/teaching-load/${id}`, loadData),
+    api.put(`/api/teaching-load/${id}`, loadData),
+
   deleteTeachingLoad: (id: number) =>
-    api.delete(`/teaching-load/${id}`),
+    api.delete(`/api/teaching-load/${id}`),
+
   initializeTables: () =>
-    api.post("/teaching-load/init"),
+    api.post("/api/teaching-load/init"),
 };
 
-// ==================== SALARY API ====================
+/* ==================== SALARY API ==================== */
 export const salaryAPI = {
   computeSalary: (salaryData: any) =>
-    api.post("/salary/compute", salaryData),
+    api.post("/api/salary/compute", salaryData),
+
   getTeacherSalary: (teacherId: number) =>
-    api.get(`/salary/teacher/${teacherId}`),
+    api.get(`/api/salary/teacher/${teacherId}`),
+
   getAllSalary: () =>
-    api.get("/salary"),
+    api.get("/api/salary"),
+
   getSalaryById: (id: number) =>
-    api.get(`/salary/${id}`),
+    api.get(`/api/salary/${id}`),
+
   getSalarySummaryByPeriod: (periodStart: string, periodEnd: string) =>
-    api.get(`/salary/period/${periodStart}/${periodEnd}`),
+    api.get(`/api/salary/period/${periodStart}/${periodEnd}`),
+
   updateSalary: (id: number, salaryData: any) =>
-    api.put(`/salary/${id}`, salaryData),
+    api.put(`/api/salary/${id}`, salaryData),
+
   finalizeSalary: (id: number) =>
-    api.patch(`/salary/${id}/finalize`),
+    api.patch(`/api/salary/${id}/finalize`),
+
   deleteSalary: (id: number) =>
-    api.delete(`/salary/${id}`),
+    api.delete(`/api/salary/${id}`),
+
   initializeTables: () =>
-    api.post("/salary/init"),
+    api.post("/api/salary/init"),
 };
 
-// ==================== NOTIFICATION API ====================
+/* ==================== NOTIFICATION API ==================== */
 export const notificationAPI = {
   createNotification: (notificationData: any) =>
-    api.post("/notifications", notificationData),
+    api.post("/api/notifications", notificationData),
+
   getAllNotifications: () =>
-    api.get("/notifications"),
+    api.get("/api/notifications"),
+
   getUnreadNotifications: () =>
-    api.get("/notifications/unread"),
+    api.get("/api/notifications/unread"),
+
   markAsRead: (id: number) =>
-    api.patch(`/notifications/${id}/read`),
+    api.patch(`/api/notifications/${id}/read`),
+
   deleteNotification: (id: number) =>
-    api.delete(`/notifications/${id}`),
+    api.delete(`/api/notifications/${id}`),
+
   initializeTables: () =>
-    api.post("/notifications/init"),
+    api.post("/api/notifications/init"),
 };
 
-// ==================== HEALTH CHECK ====================
+/* ==================== HEALTH CHECK ==================== */
 export const healthCheck = () =>
-  api.get("/health");
+  api.get("/api/health");
 
 export default api;

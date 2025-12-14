@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import axios from "axios";
+import api from "../services/api";
 import Modal from './Modal';
 
 interface Props {
@@ -7,7 +8,7 @@ interface Props {
   onClose: () => void;
 }
 
-const ForgotPasswordModal: React.FC<Props> = ({ role, onClose }) => {
+export const ForgotPasswordModal: React.FC<Props> = ({ role, onClose }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,7 +23,7 @@ const ForgotPasswordModal: React.FC<Props> = ({ role, onClose }) => {
     try {
       const url = role === 'teacher' ? '/api/teachers/forgot-password' : '/api/admin/forgot-password';
       // call backend endpoint if available
-      const resp = await axios.post(`http://localhost:4000${url}`, { email });
+      const resp = await api.post(`${url}`, { email });
       if (resp.data && resp.data.success) {
         setMessage(resp.data.message || 'Check your email for reset instructions');
       } else {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import TeacherSettings from "./TeacherSettings";
+import api from "../services/api";
 
 interface TeacherData {
   id: number;
@@ -27,7 +27,7 @@ const TeacherHome: React.FC<TeacherHomeProps> = ({ teacher: initialTeacher, acti
   const fetchTeacherData = async (teacherId: string) => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/teachers/${teacherId}`);
+      const response = await api.get(`/api/teachers/${teacherId}`);
       if (response.data.success) {
         setTeacher(response.data.data);
       }
@@ -134,7 +134,7 @@ const AttendanceSubmission: React.FC<{ teacherId?: number }> = ({ teacherId }) =
     }
 
     try {
-      const response = await axios.post("http://localhost:4000/api/attendance", {
+      const response = await api.post("/api/attendance", {
         teacher_id: teacherId,
         date: formData.date,
         subject: formData.subject,
@@ -226,7 +226,7 @@ const TeachingLoadView: React.FC<{ teacherId?: number }> = ({ teacherId }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/teaching-load/teacher/${teacherId}`);
+      const response = await api.get(`/api/teaching-load/teacher/${teacherId}`);
       if (response.data.success) {
         const rows = response.data.data || [];
         setData(rows);
@@ -255,7 +255,7 @@ const TeachingLoadView: React.FC<{ teacherId?: number }> = ({ teacherId }) => {
   const handleMarkAsDone = async (loadId: number) => {
     setMarking(loadId);
     try {
-      const response = await axios.patch(`http://localhost:4000/api/teaching-load/${loadId}/mark-done`, {});
+      const response = await api.patch(`/api/teaching-load/${loadId}/mark-done`, {});
       if (response.data.success) {
         fetchData();
         alert("Marked as done! Waiting for admin approval.");
@@ -369,7 +369,7 @@ const SalaryView: React.FC<{ teacherId?: number }> = ({ teacherId }) => {
   const fetchSalaries = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/salary/teacher/${teacherId}`);
+      const response = await api.get(`/api/salary/teacher/${teacherId}`);
       if (response.data.success) {
         setSalaries(response.data.data);
       }
@@ -511,8 +511,8 @@ const MessagesComponent: React.FC<{ teacherId?: number; teacherName?: string }> 
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(
-        `http://localhost:4000/api/messages/${teacherId}/teacher`
+      const response = await api.get(
+        `/api/messages/${teacherId}/teacher`
       );
       if (response.data.success) {
         setMessages(response.data.data || []);
@@ -527,8 +527,8 @@ const MessagesComponent: React.FC<{ teacherId?: number; teacherName?: string }> 
     if (!newMessage.trim() || !teacherId) return;
 
     try {
-      const response = await axios.post(
-        "http://localhost:4000/api/messages/send",
+      const response = await api.post(
+        "/api/messages/send",
         {
           sender_id: teacherId,
           sender_type: "teacher",

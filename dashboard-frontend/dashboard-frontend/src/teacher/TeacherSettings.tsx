@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from "../services/api";
 
 interface Props {
   teacherId?: number;
@@ -47,7 +47,7 @@ const TeacherSettings: React.FC<Props> = ({ teacherId }) => {
 
   const fetchTeacher = async () => {
     try {
-      const response = await axios.get(`http://localhost:4000/api/teachers/${teacherId}`);
+      const response = await api.get(`/api/teachers/${teacherId}`);
       if (response.data.success) {
         const data = response.data.data;
         setTeacher(data);
@@ -104,7 +104,7 @@ const TeacherSettings: React.FC<Props> = ({ teacherId }) => {
         updateData.profile_image = profileImage;
       }
 
-      const response = await axios.put(`http://localhost:4000/api/teachers/${teacherId}`, updateData);
+      const response = await api.put(`/api/teachers/${teacherId}`, updateData);
 
       if (response.data.success) {
         setMessage('Profile updated successfully');
@@ -132,7 +132,7 @@ const TeacherSettings: React.FC<Props> = ({ teacherId }) => {
 
     setLoading(true);
     try {
-      const response = await axios.put(`http://localhost:4000/api/teachers/${teacherId}/change-password`, {
+      const response = await api.put(`/api/teachers/${teacherId}/change-password`, {
         currentPassword,
         newPassword,
       });

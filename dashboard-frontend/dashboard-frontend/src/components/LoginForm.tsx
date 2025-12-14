@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ForgotPasswordModal from './ForgotPasswordModal';
+import api from "../services/api";
 
 interface LoginFormProps {
   title: string;
@@ -23,7 +24,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
 
     try {
       if (role === 'admin') {
-        // Admin auth check (demo)
+        // Demo admin login
         if (email === 'admin@school.com' && password === 'admin123') {
           localStorage.setItem('adminId', '1');
           localStorage.setItem('adminName', 'Admin');
@@ -32,30 +33,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
           setError('Invalid email or password');
         }
       } else {
-        // Teacher auth via API
-        const response = await fetch('http://localhost:4000/api/teachers/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+        // Teacher login via backend API
+        const response = await api.post('/api/teachers/login', { email, password });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            const teacher = data.data;
-            localStorage.setItem('teacherId', String(teacher.id));
-            onLogin(teacher);
-          } else {
-            setError(data.message || 'Invalid credentials');
-          }
+        if (response.data.success) {
+          const teacher = response.data.data;
+          localStorage.setItem('teacherId', String(teacher.id));
+          localStorage.setItem('teacherName', teacher.name);
+          onLogin(teacher);
         } else {
-          const data = await response.json();
-          setError(data.message || 'Invalid credentials');
+          setError(response.data.message || 'Invalid credentials');
         }
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('An error occurred. Please try again.');
+      if (err.response && err.response.data && err.response.data.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -74,9 +70,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
       <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-96 border border-white/20 animate-fadeIn">
-        <h1 className={`text-3xl font-bold text-center bg-gradient-to-r ${
-          role === 'admin' ? 'from-sky-600 to-sky-700' : 'from-blue-600 to-blue-700'
-        } bg-clip-text text-transparent mb-8`}>
+        <h1
+          className={`text-3xl font-bold text-center bg-gradient-to-r ${
+            role === 'admin' ? 'from-sky-600 to-sky-700' : 'from-blue-600 to-blue-700'
+          } bg-clip-text text-transparent mb-8`}
+        >
           {title}
         </h1>
 
@@ -88,9 +86,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
             <input
               type="email"
               value={email}
@@ -102,9 +98,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
             <input
               type="password"
               value={password}
@@ -119,9 +113,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
             type="submit"
             disabled={loading}
             className={`w-full text-white py-2 rounded-lg font-semibold transition duration-200 disabled:bg-gray-400 ${
-              role === 'admin'
-                ? 'bg-sky-600 hover:bg-sky-700'
-                : 'bg-blue-600 hover:bg-blue-700'
+              role === 'admin' ? 'bg-sky-600 hover:bg-sky-700' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
             {loading ? 'Logging in...' : 'Login'}
@@ -147,9 +139,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ title, role, onLogin, onBack, dem
         </form>
 
         {demoInfo && (
-          <p className="text-center text-gray-600 text-sm mt-4">
-            {demoInfo}
-          </p>
+          <p className="text-center text-gray-600 text-sm mt-4">{demoInfo}</p>
         )}
 
         {showForgot && <ForgotPasswordModal role={role} onClose={() => setShowForgot(false)} />}

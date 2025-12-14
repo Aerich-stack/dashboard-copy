@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 interface TeacherData {
   id: number;
@@ -26,7 +26,7 @@ const TeacherHome: React.FC<TeacherHomeProps> = ({ teacher: initialTeacher, acti
   const fetchTeacherData = async (teacherId: string) => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/teachers/${teacherId}`);
+      const response = await api.get(`/api/teachers/${teacherId}`);
       if (response.data.success) {
         setTeacher(response.data.data);
       }
@@ -104,7 +104,7 @@ const AttendanceSubmission: React.FC<{ teacherId?: number }> = ({ teacherId }) =
     }
 
     try {
-      const response = await axios.post("http://localhost:4000/api/attendance", {
+      const response = await api.post("/api/attendance", {
         teacher_id: teacherId,
         date: formData.date,
         subject: formData.subject,
@@ -194,7 +194,7 @@ const TeachingLoadView: React.FC<{ teacherId?: number }> = ({ teacherId }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/teaching-load/teacher/${teacherId}`);
+      const response = await api.get(`/api/teaching-load/teacher/${teacherId}`);
       if (response.data.success) {
         setData(response.data.data);
       }
@@ -261,7 +261,7 @@ const SalaryView: React.FC<{ teacherId?: number }> = ({ teacherId }) => {
   const fetchSalaries = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/salary/teacher/${teacherId}`);
+      const response = await api.get(`/api/salary/teacher/${teacherId}`);
       if (response.data.success) {
         setSalaries(response.data.data);
       }

@@ -1,425 +1,389 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import Modal from "../components/Modal";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import {
+  api,
+  teacherAPI,
+  attendanceAPI,
+  salaryAPI
+} from "../services/api";
 
-interface TeacherSubmission {
-  id: number;
-  teacher_name: string;
-  subject: string;
-  class_section: string;
-  date: string;
-  hours_taught: number;
-  status: string;
-}
+import notificationAPI from "../services/notificationAPI";
 
-interface Alert {
-  id: number;
-  type: string;
-  message: string;
-  related_to: string;
-}
+/* =====================
+   PROPS
+===================== */
 
 interface AdminDashboardProps {
-  activeTab?: string;
-  onLogout: () => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ activeTab = "dashboard", onLogout }) => {
-  const [submissions, setSubmissions] = useState<TeacherSubmission[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [teachers, setTeachers] = useState<any[]>([]);
+/* =====================
+   SHARED TYPES
+===================== */
+
+interface DashboardStats {
+  totalSubmissions: number;
+  pendingAttendance: number;
+  verifiedHours: number;
+}
+
+interface SalaryBar {
+  teacher: string;
+  total: number;
+}
+
+interface AttendancePie {
+  name: string;
+  value: number;
+}
+
+interface Teacher {
+  id: number;
+  name: string;
+  email?: string;
+  rate_per_hour?: number;
+}
+
+interface AttendanceRecord {
+  id: number;
+  teacher_id: number;
+  teacher_name: string;
+  date: string;
+  hours: number;
+  status: "pending" | "approved" | "rejected";
+  subject?: string;
+  remarks?: string;
+}
+
+interface SalaryRow {
+  id?: number;
+  teacher_id: number;
+  teacher_name: string;
+  period_start: string;
+  period_end: string;
+  total_hours: number;
+  rate_per_hour: number;
+  gross_salary: number;
+  deductions: number;
+  net_salary: number;
+  finalized?: boolean;
+}
+
+interface SalaryHistoryRow {
+  id: number;
+  teacher_id: number;
+  teacher_name: string;
+  period_start: string;
+  period_end: string;
+  total_salary: number;
+}
+
+/* =====================
+   MAIN DASHBOARD WRAPPER
+===================== */
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ activeTab, onTabChange }) => {
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      {activeTab === "dashboard" && <DashboardHome onTabChange={onTabChange} />}
+
+      {activeTab === "verify" && <VerifyAttendance />}
+
+      {activeTab === "compute" && <ComputeSalary />}
+
+      {activeTab === "teachers" && <ManageTeachers />}
+
+      {activeTab === "teaching_load" && <ManageTeachingLoad />}
+
+      {activeTab === "reports" && <Reports />}
+
+      {activeTab === "messages" && <AdminMessages />}
+
+      {activeTab === "settings" && <AdminSettings />}
+    </div>
+  );
+};
+
+/* =====================
+   DASHBOARD HOME
+===================== */
+
+interface DashboardHomeProps {
+  onTabChange: (tab: string) => void;
+}
+
+const DashboardHome: React.FC<DashboardHomeProps> = ({ onTabChange }) => {
+
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSubmissions: 0,
+    pendingAttendance: 0,
+    verifiedHours: 0,
+  });
+
+  const [salaryBars, setSalaryBars] = useState<SalaryBar[]>([]);
+  const [attendancePie, setAttendancePie] = useState<AttendancePie[]>([]);
 
   useEffect(() => {
-    fetchData();
-    fetchTeachers();
+    fetchDashboard();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchDashboard = async () => {
     try {
-      const [submissionsRes, alertsRes] = await Promise.all([
-        axios.get("http://localhost:4000/api/attendance"),
-        axios.get("http://localhost:4000/api/notifications")
+      const [statsRes, salaryRes, attendanceRes] = await Promise.all([
+        api.get("/api/dashboard/stats"),
+        api.get("/api/salary/summary"),
+        api.get("/api/attendance/summary"),
       ]);
 
-      if (submissionsRes.data.success) {
-        setSubmissions(submissionsRes.data.data);
-      }
-      if (alertsRes.data.success) {
-        setAlerts(alertsRes.data.data.slice(0, 5)); // Get latest 5 alerts
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-    setLoading(false);
-  };
+      if (statsRes.data?.success) setStats(statsRes.data.data);
+      if (salaryRes.data?.success) setSalaryBars(salaryRes.data.data || []);
 
-  const fetchTeachers = async () => {
-    try {
-      const response = await axios.get("http://localhost:4000/api/teachers");
-      if (response.data.success) {
-        setTeachers(response.data.data);
+      if (attendanceRes.data?.success) {
+        const raw = attendanceRes.data.data || [];
+        const normalized: AttendancePie[] = raw.map((item: any) => ({
+          name: item.name,
+          value: Number(item.value) || 0,
+        }));
+        setAttendancePie(normalized);
       }
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
+    } catch (err) {
+      console.error("Dashboard fetch error", err);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("adminId");
-    onLogout();
-  };
+  const pieColors = useMemo(() => ["#22c55e", "#ef4444"], []);
+const DashboardCard: React.FC<{
+  title: string;
+  value: number;
+  highlight?: boolean;
+  onClick?: () => void;
+}> = ({ title, value, highlight, onClick }) => (
+  <div
+    onClick={onClick}
+    className={`p-6 rounded-lg shadow cursor-pointer transition transform hover:scale-105 ${
+      highlight ? "bg-yellow-100" : "bg-white"
+    }`}
+  >
+    <h4 className="text-sm font-semibold text-gray-600">{title}</h4>
+    <p className="text-3xl font-bold mt-2">{value}</p>
+  </div>
+);
 
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
-      style={{
-        backgroundImage: `url(${require('../images/bg.png')})`,
-        backgroundSize: '110%',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
-    >
-      {/* Blurred Background Overlay */}
-      <div className="absolute inset-0 backdrop-blur-md bg-black/35"></div>
-      
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animation: 'float 8s ease-in-out infinite' }}></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animation: 'float 8s ease-in-out infinite 2s' }}></div>
+    <div className="space-y-8">
+      {/* CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <DashboardCard
+          title="Total Teacher Submissions"
+          value={stats.totalSubmissions}
+          onClick={() => onTabChange("reports")}
+        />
+        <DashboardCard
+          title="Pending Attendance"
+          value={stats.pendingAttendance}
+          highlight
+          onClick={() => onTabChange("verify")}
+        />
+        <DashboardCard
+          title="Verified Hours"
+          value={stats.verifiedHours}
+          onClick={() => onTabChange("compute")}
+        />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 px-4 md:px-6 py-6 md:py-8 min-h-screen">
-        {loading && <p className="text-center text-white text-lg font-semibold animate-pulse">Loading...</p>}
-
-        {activeTab === "dashboard" && <Dashboard submissions={submissions} alerts={alerts} />}
-        {activeTab === "verify" && <VerifyAttendance submissions={submissions} onRefresh={fetchData} />}
-        {activeTab === "compute" && <ComputeSalary />}
-        {activeTab === "teachers" && <ManageTeachers teachers={teachers} onRefresh={fetchTeachers} />}
-        {activeTab === "teaching_load" && <ManageTeachingLoad teachers={teachers} />}
-        {activeTab === "reports" && <Reports alerts={alerts} submissions={submissions} />}
-        {activeTab === "messages" && <AdminMessages />}
-        {activeTab === "settings" && <AdminSettings />}
-      </div>
-
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </div>
-  );
-};
-
-const Dashboard: React.FC<{ submissions: TeacherSubmission[]; alerts: Alert[] }> = ({
-  submissions,
-  alerts,
-}) => {
-  const [selectedTeacher, setSelectedTeacher] = useState<string>(""); // "" means all teachers
-
-  // Get unique teacher names for dropdown
-  const uniqueTeachers = Array.from(new Set(submissions.map((s) => s.teacher_name))).sort();
-
-  // Filter submissions based on selected teacher
-  const filteredSubmissions = selectedTeacher
-    ? submissions.filter((s) => s.teacher_name === selectedTeacher)
-    : submissions;
-
-  const pendingCount = filteredSubmissions.filter((s) => s.status === "Submitted").length;
-  const verifiedCount = filteredSubmissions.filter((s) => s.status === "Verified").length;
-
-  // Process data for monthly bar chart (hours worked per day)
-  const monthlyData: { [key: string]: number } = {};
-  filteredSubmissions.forEach((s) => {
-    if (s.date) {
-      const date = new Date(s.date);
-      const monthDay = `${date.getDate()}-${date.toLocaleString('default', { month: 'short' })}`;
-      const hoursVal = typeof s.hours_taught === 'string' ? parseFloat(s.hours_taught) : s.hours_taught || 0;
-      monthlyData[monthDay] = (monthlyData[monthDay] || 0) + hoursVal;
-    }
-  });
-
-  const chartData = Object.entries(monthlyData)
-    .map(([date, hours]) => ({ date, hours }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  // Process data for pie chart (hours by teacher)
-  const hoursData: { [key: string]: number } = {};
-  filteredSubmissions.forEach((s) => {
-    const hoursVal = typeof s.hours_taught === 'string' ? parseFloat(s.hours_taught) : s.hours_taught || 0;
-    hoursData[s.teacher_name] = (hoursData[s.teacher_name] || 0) + hoursVal;
-  });
-
-  const hoursChartData = Object.entries(hoursData)
-    .map(([teacher, hours]) => ({ name: teacher, value: hours }))
-    .slice(0, 5); // Top 5 teachers
-
-  const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
-  const totalHours = filteredSubmissions.reduce((sum, s) => sum + (typeof s.hours_taught === 'string' ? parseFloat(s.hours_taught) : s.hours_taught || 0), 0);
-
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Teacher Selector Header */}
-      <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-lg p-4 md:p-6 border border-white/20 hover:bg-white/20 transition-all duration-300" style={{ animation: 'slideIn 0.6s ease-out' }}>
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4">
-          <label htmlFor="teacher-select" className="text-base md:text-lg font-semibold text-white">
-            🎯 Filter by Teacher:
-          </label>
-          <select
-            id="teacher-select"
-            value={selectedTeacher}
-            onChange={(e) => setSelectedTeacher(e.target.value)}
-            className="w-full md:w-auto px-4 py-2 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white/20 text-white backdrop-blur-sm cursor-pointer hover:bg-white/30 transition-all text-sm md:text-base"
-          >
-            <option value="">📊 All Teachers</option>
-            {uniqueTeachers.map((teacher) => (
-              <option key={teacher} value={teacher}>
-                👤 {teacher}
-              </option>
-            ))}
-          </select>
-          {selectedTeacher && (
-            <button
-              onClick={() => setSelectedTeacher("")}
-              className="w-full md:w-auto px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition text-sm md:text-base"
-            >
-              ✕ Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-        <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/20 backdrop-blur-sm p-3 md:p-6 rounded-lg shadow-lg border border-blue-400/50 hover:from-blue-500/40 hover:to-blue-600/30 transition-all duration-300 transform hover:scale-105" style={{ animation: 'slideIn 0.6s ease-out 0.1s backwards' }}>
-          <p className="text-xs md:text-sm text-white/80">📊 Total Submissions</p>
-          <p className="text-2xl md:text-3xl font-bold text-white">{submissions.length}</p>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-500/30 to-yellow-600/20 backdrop-blur-sm p-3 md:p-6 rounded-lg shadow-lg border border-yellow-400/50 hover:from-yellow-500/40 hover:to-yellow-600/30 transition-all duration-300 transform hover:scale-105" style={{ animation: 'slideIn 0.6s ease-out 0.2s backwards' }}>
-          <p className="text-xs md:text-sm text-white/80">⏳ Pending Verification</p>
-          <p className="text-2xl md:text-3xl font-bold text-white">{pendingCount}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500/30 to-green-600/20 backdrop-blur-sm p-3 md:p-6 rounded-lg shadow-lg border border-green-400/50 hover:from-green-500/40 hover:to-green-600/30 transition-all duration-300 transform hover:scale-105" style={{ animation: 'slideIn 0.6s ease-out 0.3s backwards' }}>
-          <p className="text-xs md:text-sm text-white/80">✓ Verified Submissions</p>
-          <p className="text-2xl md:text-3xl font-bold text-white">{verifiedCount}</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500/30 to-purple-600/20 backdrop-blur-sm p-3 md:p-6 rounded-lg shadow-lg border border-purple-400/50 hover:from-purple-500/40 hover:to-purple-600/30 transition-all duration-300 transform hover:scale-105" style={{ animation: 'slideIn 0.6s ease-out 0.4s backwards' }}>
-          <p className="text-xs md:text-sm text-white/80">⏱️ Total Hours</p>
-          <p className="text-2xl md:text-3xl font-bold text-white">{totalHours.toFixed(1)}h</p>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Bar Chart - Monthly Completed Work (Hours) */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-lg p-4 md:p-6 border border-white/20 hover:bg-white/20 transition-all duration-300" style={{ animation: 'slideIn 0.6s ease-out 0.5s backwards' }}>
-          <h2 className="text-lg md:text-xl font-bold mb-4 text-white">📈 Hours Worked by Date & Month</h2>
-          {chartData.length === 0 ? (
-            <p className="text-white/60">No data available</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-                <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} stroke="rgba(255,255,255,0.5)" />
-                <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.5)' }} stroke="rgba(255,255,255,0.5)" />
-                <Tooltip formatter={(value) => `${value}h`} contentStyle={{ backgroundColor: '#ffffff', border: '1px solid rgba(255,255,255,0.2)' }} />
-                <Bar dataKey="hours" fill="#f5b402" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+      {/* CHARTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* BAR CHART */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="font-bold mb-4">Overall Salary per Teacher</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={salaryBars}>
+              <XAxis dataKey="teacher" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="total" fill="#3b82f6" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart - Hours Worked by Teacher */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-lg p-4 md:p-6 border border-white/20 hover:bg-white/20 transition-all duration-300" style={{ animation: 'slideIn 0.6s ease-out 0.6s backwards' }}>
-          <h2 className="text-lg md:text-xl font-bold mb-4 text-white">🎓 Teaching Hours by Teacher (Top 5)</h2>
-          {hoursChartData.length === 0 ? (
-            <p className="text-white/60">No data available</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={hoursChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry: any) => {
-                    const entryName = typeof entry?.name === "string" ? entry.name : "";
-                    const labelText = entryName.split(" ")[0] || "Unknown";
-                    const entryValue = entry?.value ?? 0;
-                    return `${labelText}: ${entryValue}h`;
-                  }}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {hoursChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </div>
-
-      {/* Alerts Section */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-bold mb-4">Recent Alerts</h2>
-        {alerts.length === 0 ? (
-          <p className="text-gray-600 text-sm md:text-base">No alerts</p>
-        ) : (
-          <div className="space-y-2">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`p-3 md:p-4 border-l-4 rounded text-sm md:text-base ${alert.type === "Alert" ? "border-red-500 bg-red-50" : alert.type === "Warning" ? "border-yellow-500 bg-yellow-50" : "border-blue-500 bg-blue-50"}`}
+        {/* PIE CHART */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="font-bold mb-4">Attendance Overview</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={attendancePie as { name: string; value: number }[]}
+                dataKey="value"
+                nameKey="name"
+                label
               >
-                <p className="font-semibold">{alert.type}</p>
-                <p className="text-xs md:text-sm text-gray-700">{alert.message}</p>
-              </div>
-            ))}
-          </div>
-        )}
+                {attendancePie.map((_, i) => (
+                  <Cell
+                    key={i}
+                    fill={pieColors[i % pieColors.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-bold mb-4">Quick Links</h2>
-        <div className="grid grid-cols-1 gap-3 md:gap-4">
-          <button className="p-3 md:p-4 bg-blue-100 hover:bg-blue-200 rounded text-left text-sm md:text-base font-semibold">
-            📋 View All Submissions
-          </button>
-          <button className="p-4 bg-green-100 hover:bg-green-200 rounded text-left">
-            ✓ Verify Attendance
-          </button>
-          <button className="p-4 bg-purple-100 hover:bg-purple-200 rounded text-left">
-            💰 Compute Salaries
-          </button>
-          <button className="p-4 bg-orange-100 hover:bg-orange-200 rounded text-left">
-            📊 Generate Reports
-          </button>
-        </div>
+      {/* NOTIFICATIONS */}
+      <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-lg">
+        <p className="font-semibold text-yellow-800">
+          📌 Attendance to verify
+        </p>
+        <p className="text-sm text-yellow-700">
+          There are pending attendance records requiring review.
+        </p>
       </div>
     </div>
   );
 };
 
-const VerifyAttendance: React.FC<{ submissions: TeacherSubmission[]; onRefresh: () => void }> = ({
-  submissions,
-  onRefresh,
-}) => {
-  const [localSubmissions, setLocalSubmissions] = useState(submissions);
-  const [approving, setApproving] = useState<number | null>(null);
+/* =====================
+   DASHBOARD CARD
+===================== */
+
+const DashboardCard: React.FC<{
+  title: string;
+  value: number;
+  highlight?: boolean;
+}> = ({ title, value, highlight }) => (
+  <div
+    className={`p-6 rounded-lg shadow cursor-pointer transition transform hover:scale-105 ${
+      highlight ? "bg-yellow-100" : "bg-white"
+    }`}
+  >
+    <h4 className="text-sm font-semibold text-gray-600">{title}</h4>
+    <p className="text-3xl font-bold mt-2">{value}</p>
+  </div>
+);
+
+/* =====================
+   VERIFY ATTENDANCE
+===================== */
+
+const VerifyAttendance: React.FC = () => {
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPending = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await attendanceAPI.getAllAttendance();
+      const all: AttendanceRecord[] = res.data?.data || [];
+      const pending = all.filter((r) => r.status === "pending");
+      setRecords(pending);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load attendance.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPending();
+  }, []);
 
   const handleApprove = async (id: number) => {
-    setApproving(id);
     try {
-      const response = await axios.patch(
-        `http://localhost:4000/api/attendance/${id}/approve`
-      );
-      if (response.data.success) {
-        setLocalSubmissions(
-          localSubmissions.map((s) =>
-            s.id === id ? { ...s, status: "Verified" } : s
-          )
-        );
-        onRefresh();
-      }
-    } catch (error) {
-      console.error("Error approving attendance:", error);
-      alert("Error approving attendance");
+      setActionLoadingId(id);
+      await attendanceAPI.approveAttendance(id);
+      await fetchPending();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to approve attendance.");
+    } finally {
+      setActionLoadingId(null);
     }
-    setApproving(null);
   };
 
-  const handleAdjust = async (id: number) => {
-    const hoursInput = prompt("Enter corrected hours:");
-    if (hoursInput) {
-      try {
-        const submission = localSubmissions.find((s) => s.id === id);
-        if (submission) {
-          const response = await axios.put(
-            `http://localhost:4000/api/attendance/${id}`,
-            {
-              ...submission,
-              hours_taught: parseFloat(hoursInput),
-              status: "Verified",
-            }
-          );
-          if (response.data.success) {
-            setLocalSubmissions(
-              localSubmissions.map((s) =>
-                s.id === id
-                  ? { ...s, hours_taught: parseFloat(hoursInput), status: "Verified" }
-                  : s
-              )
-            );
-            onRefresh();
-          }
-        }
-      } catch (error) {
-        console.error("Error adjusting attendance:", error);
-        alert("Error adjusting attendance");
-      }
+  const handleReject = async (id: number) => {
+    try {
+      setActionLoadingId(id);
+      await attendanceAPI.updateAttendance(id, { status: "rejected" });
+      await fetchPending();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to reject attendance.");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-      <h2 className="text-xl md:text-2xl font-bold mb-4">Verify Attendance Submissions</h2>
+    <div className="bg-white p-6 rounded-lg shadow">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-bold text-xl">Verify Attendance</h2>
+        <button
+          onClick={fetchPending}
+          className="px-3 py-1 text-sm rounded bg-sky-600 text-white hover:bg-sky-700"
+        >
+          Refresh
+        </button>
+      </div>
 
-      {localSubmissions.length === 0 ? (
-        <p className="text-center text-gray-600 text-sm md:text-base">No submissions to verify</p>
+      {loading && <p className="text-gray-500">Loading...</p>}
+      {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+
+      {records.length === 0 && !loading ? (
+        <p className="text-gray-500 text-sm">
+          No pending attendance records.
+        </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-sm">
+          <table className="w-full text-sm border">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Teacher Name</th>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Class</th>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Hours</th>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Date</th>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Status</th>
-                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs md:text-sm">Actions</th>
+                <th className="border p-2">Teacher</th>
+                <th className="border p-2">Date</th>
+                <th className="border p-2">Hours</th>
+                <th className="border p-2">Subject</th>
+                <th className="border p-2">Remarks</th>
+                <th className="border p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {localSubmissions.map((submission) => (
-                <tr key={submission.id} className="border-t hover:bg-gray-50">
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">{submission.teacher_name}</td>
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">{submission.class_section}</td>
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">{submission.hours_taught} hrs</td>
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">{submission.date}</td>
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-semibold ${submission.status === "Verified" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
-                    >
-                      {submission.status}
-                    </span>
-                  </td>
-                  <td className="px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm">
-                    <div className="flex gap-1 md:gap-2">
+              {records.map((r) => (
+                <tr key={r.id}>
+                  <td className="border p-2">{r.teacher_name}</td>
+                  <td className="border p-2">{r.date}</td>
+                  <td className="border p-2">{r.hours}</td>
+                  <td className="border p-2">{r.subject || "-"}</td>
+                  <td className="border p-2">{r.remarks || "-"}</td>
+                  <td className="border p-2">
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => handleApprove(submission.id)}
-                        disabled={submission.status === "Verified" || approving === submission.id}
-                        className="px-2 md:px-3 py-1 md:py-2 bg-green-500 text-white rounded text-xs hover:bg-green-600 disabled:bg-gray-400 whitespace-nowrap"
+                        onClick={() => handleApprove(r.id)}
+                        disabled={actionLoadingId === r.id}
+                        className="px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 disabled:opacity-50"
                       >
-                        {approving === submission.id ? "..." : "Approve"}
+                        {actionLoadingId === r.id ? "..." : "Approve"}
                       </button>
                       <button
-                        onClick={() => handleAdjust(submission.id)}
-                        className="px-2 md:px-3 py-1 md:py-2 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 whitespace-nowrap"
+                        onClick={() => handleReject(r.id)}
+                        disabled={actionLoadingId === r.id}
+                        className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 disabled:opacity-50"
                       >
-                        Adjust
+                        {actionLoadingId === r.id ? "..." : "Reject"}
                       </button>
                     </div>
                   </td>
@@ -433,1359 +397,801 @@ const VerifyAttendance: React.FC<{ submissions: TeacherSubmission[]; onRefresh: 
   );
 };
 
+/* =====================
+   COMPUTE SALARY (HIGH PRIORITY)
+===================== */
+
 const ComputeSalary: React.FC = () => {
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState("");
-  const [salaryData, setSalaryData] = useState({
-    period_start: "",
-    period_end: "",
-    hourly_rate: 500,
-    allowances: 0,
-    deductions: 0,
-  });
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
+  const [periodStart, setPeriodStart] = useState<string>("");
+  const [periodEnd, setPeriodEnd] = useState<string>("");
+  const [results, setResults] = useState<SalaryRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [computing, setComputing] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load teachers for dropdown
   useEffect(() => {
-    fetchTeachers();
+    const loadTeachers = async () => {
+      try {
+        const res = await teacherAPI.getAllTeachers();
+        if (res.data?.success) {
+          setTeachers(res.data.data || []);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadTeachers();
   }, []);
 
-  const fetchTeachers = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("http://localhost:4000/api/teachers");
-      if (response.data.success) {
-        setTeachers(response.data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
-    }
-    setLoading(false);
-  };
-
-  const handleComputeSalary = async () => {
-    if (!selectedTeacher || !salaryData.period_start || !salaryData.period_end) {
-      alert("Please fill all fields");
+  const handleCompute = async () => {
+    if (!periodStart || !periodEnd) {
+      setError("Period start and end are required.");
       return;
     }
-
-    setComputing(true);
-    try {
-      const response = await axios.post("http://localhost:4000/api/salary/compute", {
-        teacher_id: parseInt(selectedTeacher),
-        ...salaryData,
-      });
-
-      if (response.data.success) {
-        alert("Salary computed successfully!");
-        setSalaryData({
-          period_start: "",
-          period_end: "",
-          hourly_rate: 500,
-          allowances: 0,
-          deductions: 0,
-        });
-        setSelectedTeacher("");
-      }
-    } catch (error) {
-      console.error("Error computing salary:", error);
-      alert("Error computing salary");
-    }
-    setComputing(false);
-  };
-
-  return (
-    <div className="bg-white/30 text-center rounded-lg shadow-md p-4 md:p-6 min-h-screen flex flex-col">
-      <h2 className="text-xl md:text-2xl text-white font-bold mb-4">Compute Salary</h2>
-
-      {loading ? (
-        <p className="text-center text-gray-600 text-sm md:text-base">Loading teachers...</p>
-      ) : (
-        <div className="flex justify-center flex-1">
-          <div className="space-y-4 md:space-y-6 max-w-md w-full flex flex-col justify-center">
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Teacher</label>
-            <select
-              value={selectedTeacher}
-              onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select Teacher</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Period Start</label>
-            <input
-              type="date"
-              value={salaryData.period_start}
-              onChange={(e) =>
-                setSalaryData({ ...salaryData, period_start: e.target.value })
-              }
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Period End</label>
-            <input
-              type="date"
-              value={salaryData.period_end}
-              onChange={(e) =>
-                setSalaryData({ ...salaryData, period_end: e.target.value })
-              }
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Hourly Rate</label>
-            <input
-              type="number"
-              value={salaryData.hourly_rate}
-              onChange={(e) =>
-                setSalaryData({ ...salaryData, hourly_rate: parseFloat(e.target.value) })
-              }
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Allowances</label>
-            <input
-              type="number"
-              value={salaryData.allowances}
-              onChange={(e) =>
-                setSalaryData({ ...salaryData, allowances: parseFloat(e.target.value) })
-              }
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Deductions</label>
-            <input
-              type="number"
-              value={salaryData.deductions}
-              onChange={(e) =>
-                setSalaryData({ ...salaryData, deductions: parseFloat(e.target.value) })
-              }
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            onClick={handleComputeSalary}
-            disabled={computing}
-            className="w-full bg-purple-600 text-white py-2 md:py-3 rounded-md hover:bg-purple-700 disabled:bg-gray-400 font-semibold text-sm md:text-base"
-          >
-            {computing ? "Computing..." : "Compute Salary"}
-          </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const Reports: React.FC<{ alerts: Alert[]; submissions: TeacherSubmission[] }> = ({ alerts, submissions }) => {
-  const [salaries, setSalaries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [confirmSendId, setConfirmSendId] = useState<number | null>(null);
-  const [sendingPayslipId, setSendingPayslipId] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetchSalaries();
-  }, []);
-
-  const fetchSalaries = async () => {
+    setError(null);
     setLoading(true);
+    setResults([]);
+
     try {
-      const response = await axios.get("http://localhost:4000/api/salary");
-      if (response.data.success) {
-        setSalaries(response.data.data);
+      const payload: any = {
+        period_start: periodStart,
+        period_end: periodEnd,
+      };
+      if (selectedTeacherId !== "all") {
+        payload.teacher_id = Number(selectedTeacherId);
       }
-    } catch (error) {
-      console.error("Error fetching salaries:", error);
-    }
-    setLoading(false);
-  };
 
-  const handleExport = () => {
-    const csv = salaries
-      .map(
-        (s) =>
-          `${s.teacher_name},${s.period_start},${s.period_end},${s.total_salary}`
-      )
-      .join("\n");
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent("Teacher,Start,End,Total\n" + csv));
-    element.setAttribute("download", "salary_report.csv");
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Notifications */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-bold mb-4">Notifications</h2>
-        {alerts.length === 0 ? (
-          <p className="text-gray-600 text-sm md:text-base">No notifications</p>
-        ) : (
-          <div className="space-y-2">
-            {alerts.map((alert) => (
-              <div key={alert.id} className="p-2 md:p-3 bg-gray-50 rounded border-l-4 border-blue-500">
-                <p className="font-semibold text-xs md:text-sm">{alert.message}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Salary Reports */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3 md:gap-0">
-          <h2 className="text-lg md:text-xl font-bold">Salary Reports</h2>
-          <button
-            onClick={handleExport}
-            className="px-3 md:px-4 py-2 md:py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm md:text-base w-full md:w-auto"
-          >
-            📥 Export CSV
-          </button>
-        </div>
-
-        {loading ? (
-          <p className="text-center text-gray-600 text-sm md:text-base">Loading...</p>
-        ) : salaries.length === 0 ? (
-          <p className="text-center text-gray-600 text-sm md:text-base">No salary records found</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-3 md:px-4 py-2 text-left">Teacher</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Period</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Salary</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Status</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salaries.map((salary) => (
-                  <tr key={salary.id} className="border-t hover:bg-gray-50">
-                    <td className="px-3 md:px-4 py-2">{salary.teacher_name}</td>
-                    <td className="px-3 md:px-4 py-2">{salary.period_start} to {salary.period_end}</td>
-                    <td className="px-3 md:px-4 py-2">₱{salary.total_salary.toLocaleString()}</td>
-                    <td className="px-3 md:px-4 py-2">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-semibold ${salary.status === "Finalized" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
-                      >
-                        {salary.status}
-                      </span>
-                    </td>
-                    <td className="px-3 md:px-4 py-2">
-                      <div className="flex gap-1 md:gap-2">
-                        <button
-                          onClick={async () => {
-                            try {
-                              const resp = await axios.get(`http://localhost:4000/api/salary/${salary.id}`);
-                              if (resp.data.success && resp.data.data) {
-                                const s = resp.data.data;
-                                const content = `PAYSLIP\n\nTeacher: ${salary.teacher_name}\nPeriod: ${s.period_start} to ${s.period_end}\nVerified Hours: ${s.verified_hours}\nBasic Pay: ₱${Number(s.basic_pay).toLocaleString()}\nAllowances: ₱${Number(s.allowances).toLocaleString()}\nDeductions: ₱${Number(s.deductions).toLocaleString()}\nTotal Salary: ₱${Number(s.total_salary).toLocaleString()}\nStatus: ${s.status}`;
-                                const w = window.open('', '_blank');
-                                if (w) {
-                                  w.document.write(`<pre style="font-family:inherit; font-size:14px;">${content}</pre>`);
-                                  w.document.close();
-                                  w.focus();
-                                  w.print();
-                                } else {
-                                  alert('Unable to open print window');
-                                }
-                              }
-                            } catch (err) {
-                              console.error('Error fetching salary for print:', err);
-                              alert('Error preparing payslip for print');
-                            }
-                          }}
-                          className="px-2 md:px-3 py-1 bg-green-600 text-white rounded text-xs md:text-sm hover:bg-green-700 whitespace-nowrap"
-                        >
-                          🖨️ Print
-                        </button>
-
-                        {salary.status !== 'Finalized' ? (
-                          <button
-                            onClick={() => setConfirmSendId(salary.id)}
-                            className="px-2 md:px-3 py-1 bg-indigo-600 text-white rounded text-xs md:text-sm hover:bg-indigo-700 whitespace-nowrap"
-                          >
-                            ✉️ Send
-                          </button>
-                        ) : (
-                          <span className="text-xs md:text-sm text-gray-600">—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {confirmSendId && (
-        <Modal title="Send Payslip" onClose={() => setConfirmSendId(null)}>
-          <p className="text-sm md:text-base">Send payslip to teacher?</p>
-          <div className="mt-4 flex justify-end gap-2">
-            <button onClick={() => setConfirmSendId(null)} className="px-3 md:px-4 py-2 bg-gray-200 rounded text-sm md:text-base">Cancel</button>
-            <button 
-              onClick={async () => {
-                if (!confirmSendId) return;
-                setSendingPayslipId(confirmSendId);
-                try {
-                  const resp = await axios.post(`http://localhost:4000/api/salary/${confirmSendId}/send`);
-                  if (resp.data.success) {
-                    alert('Payslip sent successfully');
-                    fetchSalaries();
-                  } else {
-                    alert('Failed to send payslip');
-                  }
-                } catch (err) {
-                  console.error('Error sending payslip:', err);
-                  alert('Error sending payslip');
-                }
-                setSendingPayslipId(null);
-                setConfirmSendId(null);
-              }}
-              disabled={sendingPayslipId !== null}
-              className="px-3 md:px-4 py-2 bg-indigo-600 text-white rounded disabled:bg-gray-400 text-sm md:text-base"
-            >
-              {sendingPayslipId === confirmSendId ? 'Sending...' : 'Send'}
-            </button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-const ManageTeachers: React.FC<{ teachers: any[]; onRefresh: () => void }> = ({ teachers, onRefresh }) => {
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedTeacherForProfile, setSelectedTeacherForProfile] = useState<any | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    name: "",
-    department: "",
-    basic_pay: "",
-    password: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
-
-  const handleAddTeacher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.email || !formData.name || !formData.department || !formData.basic_pay || !formData.password) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await axios.post("http://localhost:4000/api/teachers", {
-        email: formData.email,
-        name: formData.name,
-        department: formData.department,
-        basic_pay: parseFloat(formData.basic_pay),
-        password: formData.password,
-      });
-
-      if (response.data.success) {
-        alert("Teacher added successfully!");
-        setFormData({ email: "", name: "", department: "", basic_pay: "", password: "" });
-        setShowAddForm(false);
-        onRefresh();
+      const res = await salaryAPI.computeSalary(payload);
+      if (res.data?.success) {
+        const data: SalaryRow[] = res.data.data || [];
+        setResults(data);
       } else {
-        alert(response.data.message || "Error adding teacher");
+        setError(res.data?.message || "Failed to compute salary.");
       }
-    } catch (error: any) {
-      console.error("Error adding teacher:", error);
-      alert(error.response?.data?.message || "Error adding teacher");
-    }
-    setLoading(false);
-  };
-
-  const handleDeleteTeacher = async (id: number) => {
-    // performs delete after confirmation modal
-    setDeleteLoading(id);
-    try {
-      const response = await axios.delete(`http://localhost:4000/api/teachers/${id}`);
-      if (response.data.success) {
-        alert("Teacher deleted successfully!");
-        onRefresh();
-      } else {
-        alert("Error deleting teacher");
-      }
-    } catch (error) {
-      console.error("Error deleting teacher:", error);
-      alert("Error deleting teacher");
-    }
-    setDeleteLoading(null);
-    setConfirmDeleteId(null);
-    setConfirmDeleteName(null);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Add Teacher Button */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl md:text-2xl text-white font-bold">Manage Teachers</h2>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm md:text-base"
-        >
-          {showAddForm ? "✕ Cancel" : "➕ Add New Teacher"}
-        </button>
-      </div>
-
-      {/* Add Teacher Form */}
-      {showAddForm && (
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <h3 className="text-lg md:text-xl font-bold mb-4">Add New Teacher</h3>
-          <form onSubmit={handleAddTeacher} className="space-y-4 w-full">
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="teacher@school.com"
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="John Doe"
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Department *</label>
-              <input
-                type="text"
-                required
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                placeholder="Mathematics"
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Basic Pay *</label>
-              <input
-                type="number"
-                required
-                value={formData.basic_pay}
-                onChange={(e) => setFormData({ ...formData, basic_pay: e.target.value })}
-                placeholder="30000"
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">Initial Password *</label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="e.g., Teacher@123"
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-              />
-              <p className="text-xs text-gray-500 mt-1">Teacher can change this after first login</p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-2 md:py-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 text-sm md:text-base"
-            >
-              {loading ? "Adding..." : "Add Teacher"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Teachers List */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h3 className="text-lg md:text-xl font-bold mb-4">All Teachers ({teachers.length})</h3>
-
-        {teachers.length === 0 ? (
-          <p className="text-center text-gray-600 text-sm md:text-base">No teachers found. Add one to get started!</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-3 md:px-4 py-2 text-left">Name</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Email</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Department</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Basic Pay</th>
-                  <th className="px-3 md:px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teachers.map((teacher) => (
-                  <tr key={teacher.id} className="border-t hover:bg-gray-50">
-                    <td className="px-3 md:px-4 py-2 font-semibold">{teacher.name}</td>
-                    <td className="px-3 md:px-4 py-2">{teacher.email}</td>
-                    <td className="px-3 md:px-4 py-2">{teacher.department}</td>
-                    <td className="px-3 md:px-4 py-2">₱{parseFloat(teacher.basic_pay).toLocaleString()}</td>
-                    <td className="px-3 md:px-4 py-2">
-                      <div className="flex gap-1 md:gap-2">
-                        <button
-                          onClick={() => setSelectedTeacherForProfile(teacher)}
-                          className="px-2 md:px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 whitespace-nowrap"
-                        >
-                          View Profile
-                        </button>
-                        <button
-                          onClick={() => { setConfirmDeleteId(teacher.id); setConfirmDeleteName(teacher.name); }}
-                          disabled={deleteLoading === teacher.id}
-                          className="px-2 md:px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 disabled:bg-gray-400 whitespace-nowrap"
-                        >
-                          {deleteLoading === teacher.id ? "..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {confirmDeleteId && (
-          <Modal title="Confirm Delete" onClose={() => { setConfirmDeleteId(null); setConfirmDeleteName(null); }}>
-            <p className="text-sm md:text-base">Are you sure you want to delete <strong>{confirmDeleteName}</strong>?</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => { setConfirmDeleteId(null); setConfirmDeleteName(null); }} className="px-3 md:px-4 py-2 bg-gray-200 rounded text-sm md:text-base">Cancel</button>
-              <button onClick={() => confirmDeleteId && handleDeleteTeacher(confirmDeleteId)} className="px-3 md:px-4 py-2 bg-red-600 text-white rounded text-sm md:text-base">Delete</button>
-            </div>
-          </Modal>
-        )}
-
-        {selectedTeacherForProfile && (
-          <Modal 
-            title={`${selectedTeacherForProfile.name}'s Profile`} 
-            onClose={() => setSelectedTeacherForProfile(null)}
-          >
-            <div className="space-y-4">
-              {/* Profile Image */}
-              {selectedTeacherForProfile.profile_image ? (
-                <div className="flex justify-center">
-                  <img
-                    src={selectedTeacherForProfile.profile_image}
-                    alt="Profile"
-                    className="w-28 md:w-32 h-28 md:h-32 rounded-full object-cover border-4 border-gray-300"
-                  />
-                </div>
-              ) : (
-                <div className="flex justify-center">
-                  <div className="w-28 md:w-32 h-28 md:h-32 rounded-full bg-gray-200 flex items-center justify-center text-3xl md:text-5xl">
-                    👤
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 gap-3 md:gap-4">
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Name</label>
-                  <p className="text-gray-900 text-sm md:text-base">{selectedTeacherForProfile.name}</p>
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Email</label>
-                  <p className="text-gray-900 text-sm md:text-base">{selectedTeacherForProfile.email}</p>
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Department</label>
-                  <p className="text-gray-900 text-sm md:text-base">{selectedTeacherForProfile.department}</p>
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Basic Pay</label>
-                  <p className="text-gray-900 text-sm md:text-base">₱{parseFloat(selectedTeacherForProfile.basic_pay).toLocaleString()}</p>
-                </div>
-              </div>
-              
-              {selectedTeacherForProfile.phone && (
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Phone</label>
-                  <p className="text-gray-900 text-sm md:text-base">{selectedTeacherForProfile.phone}</p>
-                </div>
-              )}
-
-              {selectedTeacherForProfile.address && (
-                <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700">Address</label>
-                  <p className="text-gray-900 text-sm md:text-base">{selectedTeacherForProfile.address}</p>
-                </div>
-              )}
-
-              {selectedTeacherForProfile.bio && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Bio</label>
-                  <p className="text-gray-900 whitespace-pre-wrap">{selectedTeacherForProfile.bio}</p>
-                </div>
-              )}
-
-              <div className="mt-4 flex justify-end">
-                <button 
-                  onClick={() => setSelectedTeacherForProfile(null)} 
-                  className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Manage Teaching Load Component
-const ManageTeachingLoad: React.FC<{ teachers: any[] }> = ({ teachers }) => {
-  const [teachingLoads, setTeachingLoads] = useState<any[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    subject: "",
-    class_section: "",
-    day: "",
-    start_time: "",
-    end_time: "",
-  });
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
-
-  useEffect(() => {
-    fetchTeachingLoads();
-  }, []);
-
-  const fetchTeachingLoads = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("http://localhost:4000/api/teaching-load");
-      if (response.data.success) {
-        setTeachingLoads(response.data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching teaching loads:", error);
-    }
-    setLoading(false);
-  };
-
-  const handleAssignTeachingLoad = async () => {
-    if (!selectedTeacher || !formData.subject || !formData.class_section || !formData.day || !formData.start_time || !formData.end_time) {
-      setMessage({ type: "error", text: "Please fill all fields" });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const response = await axios.post("http://localhost:4000/api/teaching-load", {
-        teacher_id: selectedTeacher,
-        subject: formData.subject,
-        class_section: formData.class_section,
-        day: formData.day,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-      });
-
-      if (response.data.success) {
-        setMessage({ type: "success", text: "Teaching load assigned successfully!" });
-        setFormData({ subject: "", class_section: "", day: "", start_time: "", end_time: "" });
-        setSelectedTeacher(null);
-        fetchTeachingLoads();
-      }
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.response?.data?.message || "Error assigning teaching load" });
-    }
-    setSubmitting(false);
-  };
-
-  const selectedTeacherName = teachers.find((t) => t.id === selectedTeacher)?.name || "Select Teacher";
-  const teacherLoads = selectedTeacher
-    ? teachingLoads.filter((load) => load.teacher_id === selectedTeacher)
-    : [];
-
-  const computeDurationHours = (load: any) => {
-    try {
-      const [sh, sm] = (load.start_time || '').split(':').map((v: string) => parseInt(v, 10));
-      const [eh, em] = (load.end_time || '').split(':').map((v: string) => parseInt(v, 10));
-      if (isNaN(sh) || isNaN(eh)) return 0;
-      let start = sh + (sm || 0) / 60;
-      let end = eh + (em || 0) / 60;
-      if (end < start) end += 24; // handle overnight classes
-      return +(end - start).toFixed(2);
     } catch (err) {
-      return 0;
+      console.error(err);
+      setError("Failed to compute salary. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteTeachingLoad = async (loadId: number) => {
-    if (!window.confirm("Are you sure you want to remove this teaching load entry?")) {
+  const handleFinalize = async (row: SalaryRow) => {
+    if (!row.id) {
+      alert("Cannot finalize. Missing salary ID from backend.");
       return;
     }
 
     try {
-      const response = await axios.delete(`http://localhost:4000/api/teaching-load/${loadId}`);
-      if (response.data.success) {
-        setMessage({ type: "success", text: "Teaching load removed successfully!" });
-        fetchTeachingLoads();
-      }
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.response?.data?.message || "Error removing teaching load" });
+      setActionLoadingId(row.id);
+      await salaryAPI.finalizeSalary(row.id);
+      // Refresh row status locally
+      setResults((prev) =>
+        prev.map((r) =>
+          r.id === row.id ? { ...r, finalized: true } : r
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Failed to finalize salary.");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
-  const handleApproveTeachingLoad = async (loadId: number) => {
-    try {
-      const response = await axios.patch(`http://localhost:4000/api/teaching-load/${loadId}/approve`, {});
-      if (response.data.success) {
-        setMessage({ type: "success", text: "Teaching load approved! Hours recorded in payslip." });
-        fetchTeachingLoads();
-      }
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.response?.data?.message || "Error approving teaching load" });
-    }
-  };
-
-  const handleDisapproveTeachingLoad = async (loadId: number) => {
-    try {
-      const response = await axios.patch(`http://localhost:4000/api/teaching-load/${loadId}/disapprove`, {});
-      if (response.data.success) {
-        setMessage({ type: "success", text: "Teaching load disapproved. Teacher can resubmit." });
-        fetchTeachingLoads();
-      }
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.response?.data?.message || "Error disapproving teaching load" });
-    }
-  };
+  const totalPayroll = useMemo(
+    () => results.reduce((sum, r) => sum + (r.net_salary || 0), 0),
+    [results]
+  );
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Assignment Form */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">📚 Assign Teaching Load</h2>
+    <div className="bg-white p-6 rounded-lg shadow space-y-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h2 className="font-bold text-xl">Compute Salary</h2>
+          <p className="text-gray-600 text-sm">
+            Select a period and optionally a specific teacher to compute salaries.
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 gap-4 md:gap-6 mb-4">
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Select Teacher</label>
+        {/* FILTER FORM */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-gray-600">
+              Period Start
+            </label>
+            <input
+              type="date"
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-gray-600">
+              Period End
+            </label>
+            <input
+              type="date"
+              value={periodEnd}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-gray-600">
+              Teacher
+            </label>
             <select
-              value={selectedTeacher || ""}
-              onChange={(e) => setSelectedTeacher(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={selectedTeacherId}
+              onChange={(e) => setSelectedTeacherId(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
             >
-              <option value="">Choose a teacher</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
+              <option value="all">All Teachers</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.rate_per_hour
+                    ? ` (₱${t.rate_per_hour}/hr)`
+                    : ""}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Subject</label>
-            <input
-              type="text"
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              placeholder="e.g., Mathematics"
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Class/Section</label>
-            <input
-              type="text"
-              value={formData.class_section}
-              onChange={(e) => setFormData({ ...formData, class_section: e.target.value })}
-              placeholder="e.g., 10-A"
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Day</label>
-            <select
-              value={formData.day}
-              onChange={(e) => setFormData({ ...formData, day: e.target.value })}
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select day</option>
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday">Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-              <option value="Saturday">Saturday</option>
-              <option value="Sunday">Sunday</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">Start Time</label>
-            <input
-              type="time"
-              value={formData.start_time}
-              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-medium text-gray-700 mb-2">End Time</label>
-            <input
-              type="time"
-              value={formData.end_time}
-              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-              className="w-full px-4 py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={handleAssignTeachingLoad}
-          disabled={submitting}
-          className="w-full px-4 py-2 md:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 font-semibold transition text-sm md:text-base"
-        >
-          {submitting ? "Assigning..." : "Assign Teaching Load"}
-        </button>
-
-        {message && (
-          <div
-            className={`mt-4 p-3 md:p-4 rounded-lg text-sm md:text-base ${
-              message.type === "success"
-                ? "bg-green-100 text-green-800 border border-green-300"
-                : "bg-red-100 text-red-800 border border-red-300"
-            }`}
+          <button
+            onClick={handleCompute}
+            disabled={loading}
+            className="px-4 py-2 bg-sky-600 text-white rounded-md text-sm font-semibold hover:bg-sky-700 disabled:opacity-50"
           >
-            {message.text}
-          </div>
-        )}
+            {loading ? "Computing..." : "Compute"}
+          </button>
+        </div>
       </div>
 
-      {/* Teaching Loads Table */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h3 className="text-lg md:text-xl font-bold mb-4">
-          {selectedTeacher ? `${selectedTeacherName}'s Teaching Load` : "All Teaching Loads"}
-        </h3>
+      {/* ERROR */}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+          {error}
+        </p>
+      )}
 
-        {loading ? (
-          <p className="text-center text-gray-600 text-sm md:text-base">Loading...</p>
-        ) : (teachingLoads.length === 0 || teacherLoads.length === 0) && selectedTeacher ? (
-          <p className="text-center text-gray-600 text-sm md:text-base">No teaching loads assigned to this teacher</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm">
-              <thead className="bg-gray-100 border-b-2 border-gray-300">
-                <tr>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-left font-semibold">Teacher</th>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-left font-semibold">Subject</th>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-left font-semibold">Class/Section</th>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-left font-semibold">Hours/Session</th>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-center font-semibold">Status</th>
-                  <th className="px-3 md:px-6 py-2 md:py-3 text-center font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedTeacher ? teacherLoads : teachingLoads).map((load, index) => {
-                  const hours = computeDurationHours(load);
-                  const isCompleted = hours >= 1.67; // Consider completed if >= 1.67 hours
-                  return (
-                    <tr key={index} className={`border-b hover:bg-blue-50 transition ${isCompleted ? 'opacity-60 bg-gray-50' : ''}`}>
-                      <td className="px-3 md:px-6 py-2 md:py-3">
-                        {teachers.find((t) => t.id === load.teacher_id)?.name || "Unknown"}
-                      </td>
-                      <td className="px-3 md:px-6 py-2 md:py-3">{load.subject}</td>
-                      <td className="px-3 md:px-6 py-2 md:py-3">{load.class_section}</td>
-                      <td className="px-3 md:px-6 py-2 md:py-3">
-                        <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
-                          isCompleted 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {hours} hrs {isCompleted && '✓'}
-                        </span>
-                      </td>
-                      <td className="px-3 md:px-6 py-2 md:py-3 text-center">
-                        <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold ${
-                          isCompleted
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {isCompleted ? 'Completed ✓' : 'Active'}
-                        </span>
-                      </td>
-                      <td className="px-3 md:px-6 py-2 md:py-3 text-center">
-                        {load.completion_status === 'pending' ? (
-                          <div className="flex gap-1 md:gap-2 justify-center">
-                            <button
-                              onClick={() => handleApproveTeachingLoad(load.id)}
-                              className="px-2 md:px-3 py-1 md:py-2 bg-green-500 text-white rounded hover:bg-green-600 text-xs font-semibold transition"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleDisapproveTeachingLoad(load.id)}
-                              className="px-2 md:px-3 py-1 md:py-2 bg-red-500 text-white rounded hover:bg-red-600 text-xs font-semibold transition"
-                            >
-                              Disapprove
-                            </button>
-                          </div>
-                        ) : load.completion_status === 'approved' ? (
-                          <span className="px-2 md:px-3 py-1 md:py-2 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                            ✓ Approved
-                          </span>
-                        ) : load.completion_status === 'disapproved' ? (
-                          <button
-                            onClick={() => handleDeleteTeachingLoad(load.id)}
-                            className="px-2 md:px-3 py-1 md:py-2 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs font-semibold transition"
-                          >
-                            Remove
-                          </button>
-                        ) : isCompleted ? (
-                          <button
-                            onClick={() => handleDeleteTeachingLoad(load.id)}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs font-semibold transition"
-                          >
-                            Remove
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDeleteTeachingLoad(load.id)}
-                            className="px-3 py-1 bg-gray-300 text-gray-600 rounded hover:bg-gray-400 text-xs font-semibold transition"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* SUMMARY */}
+      {results.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 bg-sky-50 border border-sky-100 rounded">
+            <p className="text-xs text-gray-500 uppercase">
+              Teachers computed
+            </p>
+            <p className="text-2xl font-bold text-sky-700">
+              {results.length}
+            </p>
           </div>
+          <div className="p-4 bg-emerald-50 border border-emerald-100 rounded">
+            <p className="text-xs text-gray-500 uppercase">
+              Total payroll (net)
+            </p>
+            <p className="text-2xl font-bold text-emerald-700">
+              ₱{totalPayroll.toLocaleString()}
+            </p>
+          </div>
+          <div className="p-4 bg-gray-50 border border-gray-100 rounded">
+            <p className="text-xs text-gray-500 uppercase">
+              Period
+            </p>
+            <p className="text-sm font-semibold text-gray-700">
+              {periodStart || "?"} → {periodEnd || "?"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* RESULTS TABLE */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border p-2">Teacher</th>
+              <th className="border p-2">Total Hours</th>
+              <th className="border p-2">Rate/hr</th>
+              <th className="border p-2">Gross</th>
+              <th className="border p-2">Deductions</th>
+              <th className="border p-2">Net</th>
+              <th className="border p-2">Status</th>
+              <th className="border p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.length === 0 && !loading ? (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="border p-3 text-center text-gray-500"
+                >
+                  No computed salary yet. Choose a period and click
+                  &nbsp;
+                  <span className="font-semibold">Compute</span>.
+                </td>
+              </tr>
+            ) : (
+              results.map((r, idx) => (
+                <tr key={idx}>
+                  <td className="border p-2">{r.teacher_name}</td>
+                  <td className="border p-2 text-center">
+                    {r.total_hours}
+                  </td>
+                  <td className="border p-2 text-right">
+                    ₱{r.rate_per_hour.toLocaleString()}
+                  </td>
+                  <td className="border p-2 text-right">
+                    ₱{r.gross_salary.toLocaleString()}
+                  </td>
+                  <td className="border p-2 text-right">
+                    ₱{r.deductions.toLocaleString()}
+                  </td>
+                  <td className="border p-2 text-right font-semibold">
+                    ₱{r.net_salary.toLocaleString()}
+                  </td>
+                  <td className="border p-2 text-center">
+                    {r.finalized ? (
+                      <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                        Finalized
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">
+                        Draft
+                      </span>
+                    )}
+                  </td>
+                  <td className="border p-2 text-center">
+                    <button
+                      onClick={() => handleFinalize(r)}
+                      disabled={r.finalized || actionLoadingId === r.id}
+                      className="px-3 py-1 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {r.finalized
+                        ? "Finalized"
+                        : actionLoadingId === r.id
+                        ? "Saving..."
+                        : "Finalize"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* FUTURE: add "Export Payslips" button here */}
+    </div>
+  );
+};
+
+/* =====================
+   MANAGE TEACHERS
+===================== */
+
+const ManageTeachers: React.FC = () => {
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [rate, setRate] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+
+  const loadTeachers = async () => {
+    try {
+      setLoading(true);
+      const res = await teacherAPI.getAllTeachers();
+      if (res.data?.success) {
+        setTeachers(res.data.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeachers();
+  }, []);
+
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setRate("");
+    setEditingTeacher(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload: any = {
+      name,
+      email,
+      rate_per_hour: rate ? Number(rate) : null,
+    };
+
+    try {
+      if (editingTeacher) {
+        await teacherAPI.updateTeacher(editingTeacher.id, payload);
+      } else {
+        await teacherAPI.createTeacher(payload);
+      }
+      await loadTeachers();
+      resetForm();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save teacher.");
+    }
+  };
+
+  const handleEdit = (t: Teacher) => {
+    setEditingTeacher(t);
+    setName(t.name);
+    setEmail(t.email || "");
+    setRate(
+      t.rate_per_hour !== undefined ? String(t.rate_per_hour) : ""
+    );
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Delete this teacher?")) return;
+    try {
+      await teacherAPI.deleteTeacher(id);
+      await loadTeachers();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete teacher.");
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow space-y-6">
+      <h2 className="font-bold text-xl mb-2">Manage Teachers</h2>
+
+      {/* FORM */}
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+      >
+        <div>
+          <label className="text-xs font-semibold text-gray-600">
+            Name
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="border rounded px-2 py-1 w-full text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-600">
+            Email
+          </label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="border rounded px-2 py-1 w-full text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-600">
+            Rate per hour (₱)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="border rounded px-2 py-1 w-full text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 px-4 py-2 bg-sky-600 text-white text-sm rounded hover:bg-sky-700"
+          >
+            {editingTeacher ? "Update" : "Add"}
+          </button>
+          {editingTeacher && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="px-3 py-2 text-xs bg-gray-100 rounded hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+
+      {/* LIST */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <p className="text-gray-500 text-sm">Loading...</p>
+        ) : teachers.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            No teachers found. Add one above.
+          </p>
+        ) : (
+          <table className="w-full text-sm border mt-2">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border p-2">Name</th>
+                <th className="border p-2">Email</th>
+                <th className="border p-2">Rate/hr</th>
+                <th className="border p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teachers.map((t) => (
+                <tr key={t.id}>
+                  <td className="border p-2">{t.name}</td>
+                  <td className="border p-2">
+                    {t.email || <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="border p-2 text-right">
+                    {t.rate_per_hour
+                      ? `₱${t.rate_per_hour.toLocaleString()}`
+                      : "Unset"}
+                  </td>
+                  <td className="border p-2">
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => handleEdit(t)}
+                        className="px-2 py-1 text-xs rounded bg-amber-500 text-white hover:bg-amber-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
   );
 };
 
-// Admin Settings Component
-const AdminSettings: React.FC = () => {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState<{ type: string; text: string } | null>(null);
+/* =====================
+   TEACHING LOAD
+===================== */
 
-  const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordMessage({ type: "error", text: "All fields are required" });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage({ type: "error", text: "New passwords do not match" });
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordMessage({ type: "error", text: "Password must be at least 6 characters" });
-      return;
-    }
+const ManageTeachingLoad: React.FC = () => {
+  // For now, simple placeholder with a note where to plug teachingLoadAPI later
+  return (
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h2 className="font-bold text-xl mb-2">Teaching Load</h2>
+      <p className="text-gray-600 text-sm mb-3">
+        Assign subjects and hours per teacher here. (API ready at
+        /api/teaching-load, hook it up when the schema is final.)
+      </p>
+      <p className="text-xs text-gray-500">
+        You can use teachingLoadAPI.createTeachingLoad, getAllTeachingLoads,
+        updateTeachingLoad, etc. to build a full CRUD here.
+      </p>
+    </div>
+  );
+};
 
-    setPasswordLoading(true);
+/* =====================
+   REPORTS (SALARY HISTORY)
+===================== */
+
+const Reports: React.FC = () => {
+  const [periodStart, setPeriodStart] = useState<string>("");
+  const [periodEnd, setPeriodEnd] = useState<string>("");
+  const [rows, setRows] = useState<SalaryHistoryRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async () => {
+    setError(null);
+    setRows([]);
+
     try {
-      const adminId = localStorage.getItem("adminId");
-      const response = await axios.put(
-        `http://localhost:4000/api/admin/${adminId}/change-password`,
-        { currentPassword, newPassword }
-      );
-      if (response.data.success) {
-        setPasswordMessage({ type: "success", text: "Password changed successfully!" });
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
+      setLoading(true);
+      if (periodStart && periodEnd) {
+        const res = await salaryAPI.getSalarySummaryByPeriod(
+          periodStart,
+          periodEnd
+        );
+        if (res.data?.success) {
+          setRows(res.data.data || []);
+        } else {
+          setError("Failed to fetch salary summary.");
+        }
       } else {
-        setPasswordMessage({ type: "error", text: response.data.message || "Error changing password" });
+        // Fallback: load all
+        const res = await salaryAPI.getAllSalary();
+        if (res.data?.success) {
+          setRows(res.data.data || []);
+        } else {
+          setError("Failed to fetch salary history.");
+        }
       }
-    } catch (error: any) {
-      setPasswordMessage({ type: "error", text: error.response?.data?.message || "Error changing password" });
+    } catch (err) {
+      console.error(err);
+      setError("Error loading reports.");
+    } finally {
+      setLoading(false);
     }
-    setPasswordLoading(false);
+  };
+
+  useEffect(() => {
+    handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow space-y-4">
+      <h2 className="font-bold text-xl mb-2">Salary Reports</h2>
+
+      <div className="flex flex-col md:flex-row gap-3 md:items-end">
+        <div>
+          <label className="text-xs font-semibold text-gray-600">
+            Period Start (optional)
+          </label>
+          <input
+            type="date"
+            value={periodStart}
+            onChange={(e) => setPeriodStart(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-600">
+            Period End (optional)
+          </label>
+          <input
+            type="date"
+            value={periodEnd}
+            onChange={(e) => setPeriodEnd(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+        </div>
+        <button
+          onClick={handleSearch}
+          className="px-4 py-2 bg-sky-600 text-white rounded text-sm hover:bg-sky-700"
+        >
+          Filter
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
+          {error}
+        </p>
+      )}
+
+      <div className="overflow-x-auto">
+        {loading ? (
+          <p className="text-gray-500 text-sm">Loading...</p>
+        ) : rows.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            No salary records found for the selected period.
+          </p>
+        ) : (
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border p-2">Teacher</th>
+                <th className="border p-2">Period</th>
+                <th className="border p-2">Total Salary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((s) => (
+                <tr key={s.id}>
+                  <td className="border p-2">{s.teacher_name}</td>
+                  <td className="border p-2">
+                    {s.period_start} → {s.period_end}
+                  </td>
+                  <td className="border p-2 text-right">
+                    ₱{s.total_salary.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* =====================
+   SETTINGS
+===================== */
+
+const AdminSettings: React.FC = () => (
+  <div className="bg-white p-6 rounded-lg shadow max-w-md">
+    <h2 className="font-bold text-xl mb-4">Admin Settings</h2>
+    <p className="text-gray-600 text-sm mb-2">
+      This is a placeholder for updating admin password, email notifications,
+      and other preferences.
+    </p>
+    <p className="text-xs text-gray-500">
+      You can connect this to your auth endpoints once they are fully defined.
+    </p>
+  </div>
+);
+
+/* =====================
+   MESSAGES
+===================== */
+
+const AdminMessages: React.FC = () => {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
+
+  useEffect(() => {
+    loadNotifications();
+    loadConversations();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await notificationAPI.getAllNotifications();
+      if (res.data?.success) setNotifications(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    }
+  };
+
+  const loadConversations = async () => {
+    try {
+      const res = await api.get("/api/messages/conversations");
+      if (res.data?.success) setConversations(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load conversations", err);
+    }
+  };
+
+  const loadMessages = async (conversationId: number) => {
+    try {
+      const res = await api.get(`/api/messages/${conversationId}`);
+      if (res.data?.success) setMessages(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load messages", err);
+    }
+  };
+
+  const openConversation = (conv: any) => {
+    setSelectedConversation(conv);
+    loadMessages(conv.id);
+  };
+
+  const sendMessage = async () => {
+    if (!selectedConversation || !messageText.trim()) return;
+
+    try {
+      await api.post("/api/messages/send", {
+        conversation_id: selectedConversation.id,
+        message: messageText,
+      });
+
+      setMessageText("");
+      loadMessages(selectedConversation.id); // ✅ refresh messages
+      loadConversations(); // ✅ refresh sidebar preview
+    } catch (err) {
+      console.error("Failed to send message", err);
+    }
   };
 
   return (
-    <div className="bg-white/30 text-center rounded-lg shadow-md p-6">
-      <h2 className="text-3xl text-white font-bold mb-8">⚙️ Admin Settings</h2>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+      {/* LEFT PANEL — Notifications + Conversations */}
+      <div className="bg-white rounded-lg shadow p-4 space-y-4 overflow-auto">
+        <h2 className="font-bold text-lg">Notifications</h2>
 
-      {/* Change Password Section */}
-      <div className="space-y-6">
-        <div className="border-b-2 border-gray-200 pb-6">
-          <h3 className="text-2xl font-bold text-white mb-4">🔐 Change Password</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Current Password</label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter current password"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">New Password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter new password"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Confirm new password"
-              />
-            </div>
-            <button
-              onClick={handleChangePassword}
-              disabled={passwordLoading}
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 font-semibold transition"
-            >
-              {passwordLoading ? "Updating..." : "Change Password"}
-            </button>
-            {passwordMessage && (
-              <div
-                className={`p-4 rounded-lg ${
-                  passwordMessage.type === "success"
-                    ? "bg-green-100 text-green-800 border border-green-300"
-                    : "bg-red-100 text-red-800 border border-red-300"
+        {notifications.length === 0 ? (
+          <p className="text-gray-500 text-sm">No notifications.</p>
+        ) : (
+          <ul className="space-y-2">
+            {notifications.map((n) => (
+              <li key={n.id} className="p-2 bg-gray-100 rounded text-sm">
+                {n.message}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <hr className="my-4" />
+
+        <h2 className="font-bold text-lg">Messages</h2>
+
+        {conversations.length === 0 ? (
+          <p className="text-gray-500 text-sm">No conversations yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {conversations.map((c) => (
+              <li
+                key={c.id}
+                onClick={() => openConversation(c)}
+                className={`p-2 rounded cursor-pointer ${
+                  selectedConversation?.id === c.id
+                    ? "bg-sky-200"
+                    : "bg-gray-100 hover:bg-gray-200"
                 }`}
               >
-                {passwordMessage.text}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Teacher Online Class Status */}
-        <div>
-          <h3 className="text-2xl font-bold text-white mb-4">📹 Teacher Online Classes</h3>
-          <div className="bg-white/30 border border-blue-200 rounded-lg p-4">
-            <p className="text-gray-600 mb-4">Monitor which teachers are currently hosting online classes:</p>
-            <TeacherOnlineClassStatus />
-          </div>
-        </div>
+                <p className="font-semibold">{c.teacher_name}</p>
+                <p className="text-xs text-gray-600 truncate">
+                  {c.last_message}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </div>
-  );
-};
 
-// Teacher Online Class Status Component
-const TeacherOnlineClassStatus: React.FC = () => {
-  const [onlineTeachers, setOnlineTeachers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+      {/* RIGHT PANEL — Conversation Viewer */}
+      <div className="md:col-span-2 bg-white rounded-lg shadow p-4 flex flex-col">
+        {!selectedConversation ? (
+          <p className="text-gray-500 text-sm">
+            Select a conversation to view messages.
+          </p>
+        ) : (
+          <>
+            <h2 className="font-bold text-lg mb-4">
+              Conversation with {selectedConversation.teacher_name}
+            </h2>
 
-  useEffect(() => {
-    fetchOnlineTeachers();
-    const interval = setInterval(fetchOnlineTeachers, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchOnlineTeachers = async () => {
-    try {
-      // Fetch real teachers from backend
-      const response = await axios.get("http://localhost:4000/api/teachers");
-      if (response.data.success) {
-        // Add mock online status - in real app, this would come from a separate online status tracking system
-        const teachersWithStatus = response.data.data.map((teacher: any, index: number) => ({
-          id: teacher.id,
-          name: teacher.name,
-          subject: teacher.department || "General",
-          class: "Class " + String.fromCharCode(65 + (index % 3)), // A, B, C
-          status: index % 2 === 0 ? "online" : "offline",
-          startTime: index % 2 === 0 ? "10:00 AM" : null,
-        }));
-        setOnlineTeachers(teachersWithStatus);
-      }
-    } catch (error) {
-      console.error("Error fetching online teachers:", error);
-      setOnlineTeachers([]);
-    }
-    setLoading(false);
-  };
-
-  if (loading) return <p className="text-gray-600">Loading...</p>;
-
-  return (
-    <div className="space-y-3">
-      {onlineTeachers.length === 0 ? (
-        <p className="text-gray-600">No teachers online at the moment</p>
-      ) : (
-        <div className="grid gap-3">
-          {onlineTeachers.map((teacher) => (
-            <div
-              key={teacher.id}
-              className={`p-4 rounded-lg border-l-4 ${
-                teacher.status === "online"
-                  ? "bg-green-50 border-l-green-500"
-                  : "bg-gray-50 border-l-gray-300"
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-gray-800">{teacher.name}</p>
-                  <p className="text-sm text-gray-600">{teacher.subject} - Class {teacher.class}</p>
-                  {teacher.status === "online" && (
-                    <p className="text-xs text-green-600 mt-1">🟢 Online since {teacher.startTime}</p>
-                  )}
+            <div className="flex-1 overflow-auto border p-3 rounded bg-gray-50 space-y-3">
+              {messages.map((m: any) => (
+                <div
+                  key={m.id}
+                  className={`p-2 rounded max-w-xs ${
+                    m.sender === "admin"
+                      ? "bg-sky-200 self-end"
+                      : "bg-gray-200 self-start"
+                  }`}
+                >
+                  {m.message}
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    teacher.status === "online"
-                      ? "bg-green-200 text-green-800"
-                      : "bg-gray-200 text-gray-800"
-                  }`}
-                >
-                  {teacher.status === "online" ? "🟢 Online" : "⚪ Offline"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Admin Messages Component
-const AdminMessages: React.FC = () => {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null);
-  const [replyMessage, setReplyMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [teachers, setTeachers] = useState<any[]>([]);
-
-  useEffect(() => {
-    fetchTeachers();
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchTeachers = async () => {
-    try {
-      const response = await axios.get("http://localhost:4000/api/teachers");
-      if (response.data.success) {
-        setTeachers(response.data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
-    }
-  };
-
-  const fetchMessages = async () => {
-    try {
-      const adminId = localStorage.getItem("adminId") || "1";
-      const response = await axios.get(
-        `http://localhost:4000/api/messages/${adminId}/admin`
-      );
-      if (response.data.success) {
-        const allMessages = response.data.data || [];
-        console.log("All messages received:", allMessages);
-        // Store ALL messages (both from teacher and replies from admin)
-        setMessages(allMessages);
-      }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-    }
-    setLoading(false);
-  };
-
-  const handleReply = async () => {
-    if (!replyMessage.trim() || !selectedTeacher) return;
-
-    try {
-      const adminId = localStorage.getItem("adminId") || "1"; // Use stored admin ID or default to 1
-      const response = await axios.post(
-        "http://localhost:4000/api/messages/send",
-        {
-          sender_id: parseInt(adminId),
-          sender_type: "admin",
-          receiver_id: selectedTeacher,
-          receiver_type: "teacher",
-          content: replyMessage,
-        }
-      );
-
-      if (response.data.success) {
-        setReplyMessage("");
-        fetchMessages();
-      } else {
-        alert(response.data.message || "Error sending reply");
-      }
-    } catch (error: any) {
-      console.error("Error sending reply:", error);
-      alert(error.response?.data?.message || "Error sending reply. Please try again.");
-    }
-  };
-
-  const teacherMessages = selectedTeacher
-    ? messages.filter((m) => m.sender_id === selectedTeacher)
-    : [];
-
-  return (
-    <div className="bg-white/15 rounded-lg shadow-md p-6">
-      <h2 className="text-2xl text-white font-bold mb-6">📨 Teacher Messages</h2>
-
-      <div className="grid grid-cols-1 gap-4">
-        {/* Teachers List */}
-        <div className="border border-gray-300 rounded-lg p-4 max-h-96 overflow-y-auto">
-          <h3 className="font-semibold mb-4 text-white">Teachers with Messages</h3>
-          {messages.length === 0 ? (
-            <p className="text-white text-sm">No messages from teachers</p>
-          ) : (
-            <div className="space-y-2">
-              {Array.from(
-                new Map(
-                  messages.map((msg) => [
-                    msg.sender_id,
-                    {
-                      teacherId: msg.sender_id,
-                      teacherName: teachers.find((t) => t.id === msg.sender_id)?.name || "Unknown Teacher",
-                      messageCount: messages.filter((m) => m.sender_id === msg.sender_id).length,
-                    },
-                  ])
-                ).values()
-              ).map(({ teacherId, teacherName, messageCount }) => (
-                <button
-                  key={teacherId}
-                  onClick={() => setSelectedTeacher(teacherId)}
-                  className={`w-full p-3 rounded-lg text-left transition relative ${
-                    selectedTeacher === teacherId
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 hover:bg-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">{teacherName}</p>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        selectedTeacher === teacherId
-                          ? "bg-white text-blue-500"
-                          : "bg-red-500 text-white"
-                      }`}
-                    >
-                      {messageCount}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-xs mt-1 ${selectedTeacher === teacherId ? "text-blue-100" : "text-red-600"}`}
-                  >
-                    💬 New messages
-                  </p>
-                </button>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Messages */}
-        <div className="col-span-2 border border-gray-300 rounded-lg p-4 flex flex-col">
-          {selectedTeacher ? (
-            <>
-              <h3 className="font-semibold mb-4 text-white">
-                Messages from {teachers.find((t) => t.id === selectedTeacher)?.name}
-              </h3>
-
-              {/* Messages List */}
-              <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-4 h-64 overflow-y-auto space-y-3 border border-gray-200">
-                {loading ? (
-                  <p className="text-center text-gray-600">Loading...</p>
-                ) : teacherMessages.length === 0 ? (
-                  <p className="text-center text-white">No messages from this teacher</p>
-                ) : (
-                  teacherMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`p-3 rounded-lg ${
-                        msg.sender_type === "teacher"
-                          ? "bg-blue-100 text-blue-900 border-l-4 border-blue-500"
-                          : "bg-green-100 text-green-900 border-l-4 border-green-500"
-                      }`}
-                    >
-                      <p className="text-sm">{msg.content}</p>
-                      <p className="text-xs mt-2 opacity-70">
-                        {new Date(msg.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Reply Input */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleReply()}
-                  placeholder="Type your reply..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleReply}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold transition"
-                >
-                  Reply
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="text-center text-white">Select a teacher to view messages</p>
-          )}
-        </div>
+            <div className="mt-4 flex gap-2">
+              <input
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                className="flex-1 border rounded px-3 py-2"
+                placeholder="Type a message..."
+              />
+              <button
+                onClick={sendMessage}
+                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+              >
+                Send
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 };
+
+
 
 export default AdminDashboard;
