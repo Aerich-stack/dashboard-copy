@@ -2,7 +2,7 @@
   "name": "payroll-dashboard",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://jeremiassalvador1202-cell.github.io/jeremias-dash/",
+  "homepage": "https://payroll-frontend-vqhj.onrender.com/",
   "dependencies": {
     "autoprefixer": "^10.4.14",
     "axios": "^1.6.0",
